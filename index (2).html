@@ -1,0 +1,2521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Depot System - Sample/Gift/PPM Info</title>
+    
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- SheetJS for Excel Processing -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+    <!-- html2pdf Library for Saving PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        :root {
+            /* Color Palette */
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --border: #bdc3c7;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --warning: #f39c12;
+            --teal: #16a085;
+            --purple: #9b59b6;
+            --orange: #d35400; /* For Cat D */
+            --pink: #c2185b;   /* For Cat E */
+            --cyan: #00bcd4; /* For Edit Category Button */
+            --shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f4f7f6; margin: 0; padding: 0; color: #333; height: 100vh; overflow: hidden; }
+
+        /* LOGIN OVERLAY */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            z-index: 2000;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .login-box {
+            background: white; padding: 40px; border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 350px;
+            text-align: center;
+        }
+        .login-box h2 { margin-top: 0; color: var(--primary); }
+        .login-input {
+            width: 100%; padding: 12px; margin: 10px 0;
+            border: 1px solid var(--border); border-radius: 4px;
+        }
+        .login-btn {
+            width: 100%; padding: 12px; background: var(--accent);
+            color: white; border: none; border-radius: 4px;
+            font-size: 1rem; cursor: pointer; margin-top: 10px;
+        }
+        .login-btn:hover { background: #2980b9; }
+
+        /* HEADER & NAVIGATION */
+        header { 
+            background-color: var(--primary); color: white; 
+            padding: 0.5rem 1rem; display: flex; 
+            justify-content: space-between; align-items: center; 
+            height: 60px; flex-shrink: 0; 
+        }
+        .logo { font-size: 1.2rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        
+        .user-controls { display: flex; align-items: center; gap: 15px; }
+        .depot-selector select {
+            padding: 5px; border-radius: 4px; border: none; font-weight: bold; color: var(--dark);
+        }
+        .user-info span { font-size: 0.9rem; background: rgba(255,255,255,0.1); padding: 5px 10px; border-radius: 20px; }
+
+        nav { display: flex; gap: 5px; overflow-x: auto; flex-wrap: wrap; flex: 1; justify-content: center; padding: 0 15px; }
+        nav button { background: none; border: none; color: #bdc3c7; padding: 0.5rem 0.8rem; cursor: pointer; font-size: 0.95rem; transition: 0.3s; white-space: nowrap; border-radius: 4px; }
+        nav button:hover, nav button.active { color: white; background: rgba(255,255,255,0.1); }
+
+        /* MAIN CONTAINER */
+        #main-container { padding: 20px; max-width: 1600px; margin: 0 auto; height: calc(100vh - 60px); overflow-y: auto; }
+        .section { display: none; animation: fadeIn 0.3s; }
+        .section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* DASHBOARD & CARDS */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: var(--shadow); text-align: center; }
+        .card h3 { margin: 0; font-size: 2rem; color: var(--accent); }
+        .card p { margin: 5px 0 0; color: #7f8c8d; }
+
+        /* LAYOUTS */
+        .split-view { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+        @media(max-width: 768px) { .split-view { grid-template-columns: 1fr; } }
+
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: var(--shadow); height: fit-content; margin-bottom: 20px;}
+        .panel-header { border-bottom: 2px solid var(--light); padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+
+        /* SEARCH */
+        .search-container { background: white; padding: 15px 20px; border-radius: 8px; box-shadow: var(--shadow); margin-bottom: 20px; display: flex; gap: 10px; align-items: center; }
+        .search-input { flex: 1; padding: 12px 15px; border: 1px solid var(--border); border-radius: 30px; font-size: 1rem; outline: none; transition: 0.3s; }
+        .search-input:focus { border-color: var(--accent); box-shadow: 0 0 5px rgba(52, 152, 219, 0.2); }
+
+        /* CATEGORY VIEW */
+        .cat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+        .cat-card { background: white; border-radius: 8px; box-shadow: var(--shadow); overflow: hidden; border-top: 5px solid #ccc; }
+        .cat-card.type-A { border-top-color: var(--accent); }
+        .cat-card.type-B { border-top-color: var(--warning); }
+        .cat-card.type-C { border-top-color: var(--teal); }
+        .cat-card.type-D { border-top-color: var(--orange); } 
+        .cat-card.type-E { border-top-color: var(--pink); }   
+        
+        .cat-header { padding: 15px; color: white; }
+        .cat-header.A { background-color: var(--accent); }
+        .cat-header.B { background-color: var(--warning); }
+        .cat-header.C { background-color: var(--teal); }
+        .cat-header.D { background-color: var(--orange); } 
+        .cat-header.E { background-color: var(--pink); }   
+        
+        .cat-body { padding: 0; max-height: 500px; overflow-y: auto; }
+        
+        /* MPO LIST ITEM */
+        .cat-mpo-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid var(--light); cursor: pointer; transition: 0.2s; background-color: white; }
+        .cat-mpo-item:hover { background-color: #f8f9fa; }
+        .cat-mpo-info { flex: 1; padding-right: 10px; }
+        .cat-mpo-info strong { font-size: 0.95rem; display: block; margin-bottom: 2px; }
+        .cat-mpo-info small { color: #7f8c8d; display: block; }
+        .cat-mpo-actions { display: flex; gap: 5px; align-items: center; }
+        
+        .btn-gen-prod { background-color: var(--accent); color: white; padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; border: none; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 4px; }
+        .btn-gen-gift { background-color: var(--purple); color: white; padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; border: none; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 4px; }
+        .btn-gen-prod:hover { background-color: #2980b9; transform: scale(1.05); }
+        .btn-gen-gift:hover { background-color: #8e44ad; transform: scale(1.05); }
+
+        /* FORMS & INPUTS */
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem; color: var(--secondary); }
+        input, select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.95rem; }
+        input:focus, select:focus { outline: none; border-color: var(--accent); }
+        input[readonly] { background-color: #e9ecef; cursor: default; }
+
+        /* GENERIC BUTTONS */
+        .btn { padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; transition: 0.2s; font-size: 0.9rem; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-purple { background: var(--purple); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-cyan { background: var(--cyan); color: white; }
+        .btn-secondary { background: var(--light); color: var(--dark); border: 1px solid var(--border); }
+        .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* TABLES */
+        .table-responsive { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid var(--light); font-size: 0.9rem; }
+        th { background-color: #f8f9fa; color: var(--secondary); font-weight: 700; text-transform: uppercase; font-size: 0.8rem; }
+        tr:hover { background-color: #f1f2f6; }
+        .badge-depot { background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; color: #555; font-weight: bold;}
+
+        /* MONTH WISE VIEW STYLES */
+        .month-group { margin-bottom: 30px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; box-shadow: var(--shadow); }
+        .month-header { background-color: var(--secondary); color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .month-header h4 { margin: 0; font-size: 1.1rem; font-weight: bold; }
+        .month-count { background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px; font-size: 0.85rem; }
+        
+        /* PRODUCT LIST GENERATOR */
+        .product-list-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid var(--light); background: white; }
+        .product-list-item:hover { background-color: #f8f9fa; }
+        .product-list-item input[type="checkbox"] { width: 18px; height: 18px; margin-right: 15px; cursor: pointer; }
+        .product-list-info { flex: 1; }
+        .product-list-info strong { display: block; color: var(--primary); }
+        .product-list-info span { font-size: 0.85rem; color: #7f8c8d; }
+        .product-qty { font-weight: bold; color: var(--accent); margin-right: 10px; background: #eaf2f8; padding: 2px 6px; border-radius: 4px;}
+
+        /* MANUAL GENERATOR SPECIFIC STYLES */
+        .manual-qty-input {
+            width: 60px;
+            padding: 5px;
+            margin-right: 10px;
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* TOAST NOTIFICATION */
+        #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 16px; position: fixed; z-index: 3000; bottom: 30px; right: 30px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+
+        /* MODAL */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; backdrop-filter: blur(2px); }
+        .modal-content { background-color: white; padding: 25px; border-radius: 8px; width: 500px; max-width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 15px 30px rgba(0,0,0,0.3); animation: slideDown 0.3s; }
+        @keyframes slideDown { from {transform: translateY(-50px); opacity: 0;} to {transform: translateY(0); opacity: 1;} }
+        .close { color: #aaa; float: right; font-size: 24px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .close:hover { color: var(--danger); }
+
+        /* LOADER */
+        .loader { display: none; border: 4px solid #f3f3f3; border-top: 4px solid var(--accent); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 50px auto; position: fixed; top: 50%; left: 50%; z-index: 5000; transform: translate(-50%, -50%); }
+        @keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+
+        /* ------------------ PRINT STYLES ------------------ */
+        #print-area, #print-stock-area { display: none; }
+        
+        @media print {
+            body * { visibility: hidden; height: 0; overflow: hidden; }
+            #print-area, #print-area *, #print-stock-area, #print-stock-area * { 
+                visibility: visible; 
+                height: auto; 
+                overflow: visible; 
+                /* FORCE ALL TEXT BLACK AND BACKGROUNDS TRANSPARENT */
+                color: #000 !important; 
+                background-color: transparent !important;
+            }
+            #print-area, #print-stock-area { 
+                position: absolute; left: 0; top: 0; width: 100%; 
+                display: block; background: white; color: #000;
+            }
+            @page { size: A4; margin: 10mm; }
+            .print-header { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #000; border-top: 2px solid #000; padding: 15px 0; background: none !important; }
+            .print-col { flex: 1; font-size: 14px; line-height: 1.6; }
+            .print-col.center { text-align: center; }
+            .print-col.right { text-align: right; } 
+            .print-title { font-size: 40px; font-weight: 900; text-transform: uppercase; margin-bottom: 15px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 5px; letter-spacing: 1px; color: #000 !important; }
+            .print-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+            .print-table th, .print-table td { border: 1px solid #000 !important; padding: 6px 4px; background: none !important; color: #000 !important; }
+            .print-table th { text-align: center; font-weight: bold; border-bottom: 2px solid #000 !important; border-top: 2px solid #000 !important; text-transform: uppercase; font-size: 11px; color: #000 !important; }
+            .stock-print-title { font-size: 16px; font-weight: bold; text-align: center; text-transform: uppercase; margin-bottom: 10px; border-bottom: 1px solid #000; padding-bottom: 5px; color: #000 !important; }
+            .stock-print-info { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 12px; font-weight: bold; color: #000 !important; }
+            .footer-note { margin-top: 30px; border-top: 1px solid #000; padding-top: 10px; font-style: italic; font-weight: bold; font-size: 20px; text-align: center; color: #000 !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="login-overlay">
+    <div class="login-box">
+        <div style="font-size: 3rem; color: var(--accent); margin-bottom: 10px;">
+            <i class="fa-solid fa-boxes-stacked"></i>
+        </div>
+        <h2>Depot System</h2>
+        <p style="color:#7f8c8d; margin-bottom: 20px;">Sample/Gift/PPM Info</p>
+        
+        <!-- FIXED: Removed inline onsubmit, added ID -->
+        <form id="login-form">
+            <input type="text" name="username" class="login-input" placeholder="Username / ID" required autocomplete="off">
+            <input type="password" name="password" class="login-input" placeholder="Password" required>
+            <button type="submit" class="login-btn">Login <i class="fa-solid fa-arrow-right"></i></button>
+        </form>
+        <div id="login-error" style="color: var(--danger); font-size: 0.9rem; margin-top: 10px; display:none;"></div>
+    </div>
+</div>
+
+<!-- MAIN APP STRUCTURE -->
+<header>
+    <div class="logo">
+        <i class="fa-solid fa-layer-group"></i> 
+        <span>Depot System</span>
+    </div>
+    
+    <nav>
+        <button onclick="window.nav('dashboard')" class="active"><i class="fa-solid fa-chart-line"></i> Dashboard</button>
+        <button onclick="window.nav('categoryView')"><i class="fa-solid fa-list"></i> Categories</button>
+        <button onclick="window.nav('generator')"><i class="fa-solid fa-box-open"></i> Product</button>
+        <button onclick="window.nav('giftGenerator')" style="color:var(--purple)"><i class="fa-solid fa-gift"></i> Gift</button>
+        <!-- NEW BUTTON ADDED HERE -->
+        <button onclick="window.nav('manualGenerator')" style="color:var(--warning)"><i class="fa-solid fa-pen-to-square"></i> Manual Prod</button>
+        <button onclick="window.nav('challans')"><i class="fa-solid fa-file-invoice"></i> Challans</button>
+        <button onclick="window.nav('management')" id="nav-mgmt"><i class="fa-solid fa-cogs"></i> Management</button>
+        <button onclick="window.nav('reports')"><i class="fa-solid fa-warehouse"></i> Stock</button>
+    </nav>
+
+    <div class="user-controls">
+        <!-- Depot Filter for Admin -->
+        <div class="depot-selector" id="depot-filter-container" style="display:none;">
+            <select id="global-depot-filter" onchange="window.changeDepotFilter()">
+                <option value="ALL">All Depots</option>
+                <!-- Options populated by JS -->
+            </select>
+        </div>
+        
+        <div class="user-info" id="user-display">
+            <i class="fa-solid fa-user-circle"></i> <span id="u-name">Loading...</span>
+        </div>
+        <button class="btn btn-sm btn-danger" onclick="window.logout()" title="Logout"><i class="fa-solid fa-power-off"></i></button>
+    </div>
+</header>
+
+<!-- LOADING SPINNER -->
+<div id="loader" class="loader"></div>
+
+<main id="main-container">
+    
+    <!-- DASHBOARD SECTION -->
+    <section id="dashboard" class="section active">
+        <h2><i class="fa-solid fa-tachometer-alt"></i> Dashboard Overview</h2>
+        <div class="dashboard-grid">
+            <div class="card">
+                <h3 id="d-total-mpo">0</h3>
+                <p>Total MPOs</p>
+            </div>
+            <div class="card">
+                <h3 id="d-total-prod">0</h3>
+                <p>Products</p>
+            </div>
+            <div class="card" style="border-top: 4px solid var(--purple);">
+                <h3 id="d-total-gifts">0</h3>
+                <p>Gift Items</p>
+            </div>
+            <div class="card">
+                <h3 id="d-total-da">0</h3>
+                <p>Transport (DA)</p>
+            </div>
+            <!-- SPLIT CARDS FOR CHALLANS -->
+            <div class="card" style="border-top: 4px solid var(--accent);">
+                <h3 id="d-total-prod-challan">0</h3>
+                <p>Product Challans</p>
+            </div>
+            <div class="card" style="border-top: 4px solid var(--purple);">
+                <h3 id="d-total-gift-challan">0</h3>
+                <p>Gift Challans</p>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">
+                <h3>Category Overview (Based on Product Category)</h3>
+            </div>
+            <div class="dashboard-grid">
+                <!-- Category A -->
+                <div class="card cat-stat-card type-A">
+                    <small style="color:var(--accent); font-weight:bold;">CATEGORY A</small>
+                    <h2 id="cat-sales-A" style="margin: 10px 0;">0</h2>
+                    <p style="margin:0; font-size: 0.9rem;">Total Sales</p>
+                    <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+                    <small>MPOs: <strong id="cat-mpo-A">0</strong></small>
+                </div>
+                
+                <!-- Category B -->
+                <div class="card cat-stat-card type-B">
+                    <small style="color:var(--warning); font-weight:bold;">CATEGORY B</small>
+                    <h2 id="cat-sales-B" style="margin: 10px 0;">0</h2>
+                    <p style="margin:0; font-size: 0.9rem;">Total Sales</p>
+                    <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+                    <small>MPOs: <strong id="cat-mpo-B">0</strong></small>
+                </div>
+                
+                <!-- Category C -->
+                <div class="card cat-stat-card type-C">
+                    <small style="color:var(--teal); font-weight:bold;">CATEGORY C</small>
+                    <h2 id="cat-sales-C" style="margin: 10px 0;">0</h2>
+                    <p style="margin:0; font-size: 0.9rem;">Total Sales</p>
+                    <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+                    <small>MPOs: <strong id="cat-mpo-C">0</strong></small>
+                </div>
+
+                <!-- Category D -->
+                <div class="card cat-stat-card type-D">
+                    <small style="color:var(--orange); font-weight:bold;">CATEGORY D</small>
+                    <h2 id="cat-sales-D" style="margin: 10px 0;">0</h2>
+                    <p style="margin:0; font-size: 0.9rem;">Total Sales</p>
+                    <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+                    <small>MPOs: <strong id="cat-mpo-D">0</strong></small>
+                </div>
+
+                <!-- Category E -->
+                <div class="card cat-stat-card type-E">
+                    <small style="color:var(--pink); font-weight:bold;">CATEGORY E</small>
+                    <h2 id="cat-sales-E" style="margin: 10px 0;">0</h2>
+                    <p style="margin:0; font-size: 0.9rem;">Total Sales</p>
+                    <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+                    <small>MPOs: <strong id="cat-mpo-E">0</strong></small>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CATEGORY VIEW SECTION -->
+    <section id="categoryView" class="section">
+        <h2>Category Wise MPO View (By Product Category)</h2>
+        <div class="search-container">
+            <i class="fa-solid fa-magnifying-glass search-icon" style="color: #999;"></i>
+            <input type="text" id="mpo-search-input" class="search-input" placeholder="Search MPO by Name or ID..." oninput="window.filterCategoryView()" onkeyup="window.filterCategoryView()">
+            <button class="btn btn-secondary btn-sm" onclick="window.clearMpoSearch()">Clear</button>
+        </div>
+        <div class="cat-grid" id="cat-grid-container"></div>
+    </section>
+
+    <!-- PRODUCT GENERATOR SECTION -->
+    <section id="generator" class="section">
+        <h2><i class="fa-solid fa-box"></i> Product Challan Generator</h2>
+        <div class="split-view">
+            <div class="panel">
+                <div class="panel-header"><h3>Selection Details</h3></div>
+                <div class="form-group">
+                    <label>Select MPO</label>
+                    <select id="gen-mpo" onchange="window.loadMPODetails()"><option value="">-- Choose MPO --</option></select>
+                </div>
+                <div id="mpo-details" style="display:none; background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid var(--accent); font-size: 0.9rem;">
+                    <p style="margin:5px 0;"><strong>MPO Name:</strong> <span id="d-name"></span></p>
+                    <p style="margin:5px 0;"><strong>Territory:</strong> <span id="d-territory"></span></p>
+                    <p style="margin:5px 0;"><strong>Area:</strong> <span id="d-area"></span></p>
+                    <p style="margin:5px 0;"><strong>Region:</strong> <span id="d-region"></span></p>
+                    <p style="margin:5px 0;"><strong>Prod Category:</strong> <span id="d-cat" style="color:var(--accent); font-weight:bold;"></span></p>
+                    <p style="margin:5px 0;"><strong>TP Sales:</strong> <span id="d-sales"></span></p>
+                </div>
+                <div class="form-group">
+                    <label>Select DA (Transport)</label>
+                    <select id="gen-da" disabled><option value="">-- Choose DA --</option></select>
+                </div>
+                <div style="margin-top: 20px; padding-top:15px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                    <strong>Selected: <span id="selected-count">0</span></strong>
+                    <button class="btn btn-success" onclick="window.generateChallan('prod')" id="btn-gen-prod" disabled>Generate Challan</button>
+                </div>
+                <br>
+                <button class="btn btn-secondary" style="width:100%" onclick="window.resetGenerator()"><i class="fa-solid fa-rotate-left"></i> Clear</button>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Select Products</h3>
+                    <button class="btn btn-sm btn-secondary" onclick="window.toggleSelectAll()">Select All</button>
+                </div>
+                <div id="product-list-container" style="max-height: 600px; overflow-y: auto; border: 1px solid var(--light); border-radius: 4px;"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- GIFT GENERATOR SECTION -->
+    <section id="giftGenerator" class="section">
+        <h2><i class="fa-solid fa-gifts"></i> Gift Challan Generator</h2>
+        <div class="split-view">
+            <div class="panel">
+                <div class="panel-header"><h3>Gift Selection</h3></div>
+                <div class="form-group">
+                    <label>Select MPO</label>
+                    <select id="gen-mpo-gift" onchange="window.loadGiftMPODetails()"><option value="">-- Choose MPO --</option></select>
+                </div>
+                <div id="mpo-details-gift" style="display:none; background: #f8f9fa; padding: 15px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid var(--purple); font-size: 0.9rem;">
+                    <p style="margin:5px 0;"><strong>MPO Name:</strong> <span id="d-name-gift"></span></p>
+                    <p style="margin:5px 0;"><strong>Territory:</strong> <span id="d-territory-gift"></span></p>
+                    <p style="margin:5px 0;"><strong>Gift Category:</strong> <span id="d-cat-gift" style="color:var(--purple); font-weight:bold;"></span></p>
+                </div>
+                <div class="form-group">
+                    <label>Select DA (Transport)</label>
+                    <select id="gen-da-gift" disabled><option value="">-- Choose DA --</option></select>
+                </div>
+                <div style="margin-top: 20px; padding-top:15px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                    <strong>Selected: <span id="selected-count-gift">0</span></strong>
+                    <button class="btn btn-purple" onclick="window.generateChallan('gift')" id="btn-gen-gift" disabled>Generate Gift Challan</button>
+                </div>
+                <br>
+                <button class="btn btn-secondary" style="width:100%" onclick="window.resetGiftGenerator()"><i class="fa-solid fa-rotate-left"></i> Clear</button>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Select Gifts</h3>
+                    <button class="btn btn-sm btn-secondary" onclick="window.toggleSelectGiftAll()">Select All</button>
+                </div>
+                <div id="gift-list-container" style="max-height: 600px; overflow-y: auto; border: 1px solid var(--light); border-radius: 4px;"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- NEW MANUAL PRODUCT GENERATOR SECTION -->
+    <section id="manualGenerator" class="section">
+        <h2><i class="fa-solid fa-pen-to-square"></i> Manual Product Challan</h2>
+        <p style="color:#7f8c8d; margin-top:-10px; margin-bottom: 20px;">Generate a challan with custom quantities (ignores category quotas).</p>
+        <div class="split-view">
+            <div class="panel">
+                <div class="panel-header"><h3>Selection Details</h3></div>
+                <div class="form-group">
+                    <label>Select MPO</label>
+                    <select id="manual-mpo" onchange="window.loadManualMPODetails()"><option value="">-- Choose MPO --</option></select>
+                </div>
+                <div id="manual-mpo-details" style="display:none; background: #fff3cd; padding: 15px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid var(--warning); font-size: 0.9rem;">
+                    <p style="margin:5px 0;"><strong>MPO Name:</strong> <span id="md-name"></span></p>
+                    <p style="margin:5px 0;"><strong>Depot:</strong> <span id="md-depot"></span></p>
+                    <p style="margin:5px 0;"><strong>Territory:</strong> <span id="md-territory"></span></p>
+                </div>
+                <div class="form-group">
+                    <label>Select DA (Transport)</label>
+                    <select id="manual-da" disabled><option value="">-- Choose DA --</option></select>
+                </div>
+                <div style="margin-top: 20px; padding-top:15px; border-top: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                    <strong>Total Items: <span id="manual-total-items">0</span></strong>
+                    <button class="btn btn-primary" onclick="window.generateManualChallan()" id="btn-gen-manual" disabled>Generate Manual Challan</button>
+                </div>
+                <br>
+                <button class="btn btn-secondary" style="width:100%" onclick="window.resetManualGenerator()"><i class="fa-solid fa-rotate-left"></i> Clear</button>
+            </div>
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>Products & Quantities</h3>
+                    <div style="font-size:0.85rem; color:#666;">Enter Qty > 0 to add</div>
+                </div>
+                <div id="manual-product-list-container" style="max-height: 600px; overflow-y: auto; border: 1px solid var(--light); border-radius: 4px;"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CHALLANS LIST SECTION -->
+    <section id="challans" class="section">
+        <h2><i class="fa-solid fa-file-invoice"></i> Challan History</h2>
+        <div class="panel">
+            <div class="panel-header">
+                <h3>Generated Challans <span id="challan-count-badge" style="font-size: 0.85rem; font-weight: normal; color: #666; margin-left: 10px;">(Total: 0)</span></h3>
+                
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap: wrap;">
+                    
+                    <!-- VIEW MODE SELECTOR -->
+                    <div style="display:flex; align-items:center; gap:5px; border-right: 1px solid #ddd; padding-right: 10px; margin-right: 5px;">
+                        <label style="margin:0; font-size:0.85rem; color:#7f8c8d;">View:</label>
+                        <select id="view-mode" style="width: 110px; font-size: 0.9rem;" onchange="window.renderChallans()">
+                            <option value="list">Flat List</option>
+                            <option value="month" selected>Month Wise</option>
+                        </select>
+                    </div>
+
+                    <!-- DEPOT FILTER -->
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <label style="margin:0; font-size:0.85rem; color:#7f8c8d;">Depot:</label>
+                        <select id="filter-depot" style="width: 120px; font-size: 0.9rem;" onchange="window.renderChallans()">
+                            <option value="">All Depots</option>
+                        </select>
+                    </div>
+
+                    <!-- CATEGORY FILTER (A-E) -->
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <label style="margin:0; font-size:0.85rem; color:#7f8c8d;">Cat:</label>
+                        <select id="filter-category" style="width: 70px; font-size: 0.9rem;" onchange="window.renderChallans()">
+                            <option value="">All</option>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="E">E</option>
+                        </select>
+                    </div>
+
+                    <!-- MPO FILTER -->
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <label style="margin:0; font-size:0.85rem; color:#7f8c8d;">MPO:</label>
+                        <select id="filter-mpo" style="width: 200px; font-size: 0.9rem;" onchange="window.renderChallans()">
+                            <option value="">All MPOs</option>
+                        </select>
+                    </div>
+
+                    <!-- CHALLAN NO FILTER -->
+                    <div style="display:flex; align-items:center; gap:5px;">
+                        <label style="margin:0; font-size:0.85rem; color:#7f8c8d;">No:</label>
+                        <input type="text" id="filter-challan-no" style="width: 140px; padding: 5px; font-size: 0.9rem; border: 1px solid var(--border); border-radius: 4px;" placeholder="Search Challan No" oninput="window.renderChallans()">
+                    </div>
+                    
+                    <button class="btn btn-sm btn-secondary" onclick="window.clearChallanFilters()"><i class="fa-solid fa-times"></i> Clear</button>
+
+                </div>
+            </div>
+            
+            <div id="challan-content-area">
+                <!-- Challan Tables will be rendered here -->
+            </div>
+            <div id="no-challan-msg" style="text-align:center; padding:20px; color:#999; display:none;">No challans found matching your filters.</div>
+        </div>
+    </section>
+
+    <!-- MANAGEMENT SECTION -->
+    <section id="management" class="section">
+        <h2><i class="fa-solid fa-cogs"></i> Management</h2>
+        
+        <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-secondary" onclick="window.showMgmt('mpo')"><i class="fa-solid fa-user-tie"></i> MPOs</button>
+            <button class="btn btn-secondary" onclick="window.showMgmt('prod')"><i class="fa-solid fa-box"></i> Products</button>
+            <button class="btn btn-secondary" style="background-color: var(--purple); color: white;" onclick="window.showMgmt('gift')"><i class="fa-solid fa-gift"></i> Gifts</button>
+            <button class="btn btn-secondary" onclick="window.showMgmt('da')"><i class="fa-solid fa-truck"></i> Transport (DA)</button>
+            
+            <!-- USERS BUTTON VISIBLE -->
+            <button class="btn btn-secondary" id="btn-mgmt-users" style="background-color: var(--danger); color: white;" onclick="window.showMgmt('users')"><i class="fa-solid fa-users-cog"></i> Users</button>
+        </div>
+
+        <div id="mgmt-mpo" class="panel">
+            <div class="panel-header">
+                <h3>MPO List</h3>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-secondary" onclick="window.openUploadModal('mpo')"><i class="fa-solid fa-file-excel" style="color:green;"></i> Upload Excel</button>
+                    <button class="btn btn-primary" onclick="window.openModal('mpo')"><i class="fa-solid fa-plus"></i> Add MPO</button>
+                </div>
+            </div>
+            <div class="table-responsive"><table id="table-mpo"></table></div>
+        </div>
+        <div id="mgmt-prod" class="panel" style="display:none">
+            <div class="panel-header">
+                <h3>Product List</h3>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-secondary" onclick="window.openUploadModal('prod')"><i class="fa-solid fa-file-excel" style="color:green;"></i> Upload Excel</button>
+                    <button class="btn btn-primary" onclick="window.openModal('prod')"><i class="fa-solid fa-plus"></i> Add Product</button>
+                </div>
+            </div>
+            <div class="table-responsive"><table id="table-prod"></table></div>
+        </div>
+        <div id="mgmt-gift" class="panel" style="display:none">
+            <div class="panel-header"><h3>Gift List</h3><button class="btn btn-purple" onclick="window.openModal('gift')"><i class="fa-solid fa-plus"></i> Add Gift</button></div>
+            <div class="table-responsive"><table id="table-gift"></table></div>
+        </div>
+        <div id="mgmt-da" class="panel" style="display:none">
+            <div class="panel-header"><h3>Transport (DA) List</h3><button class="btn btn-primary" onclick="window.openModal('da')"><i class="fa-solid fa-plus"></i> Add DA</button></div>
+            <div class="table-responsive"><table id="table-da"></table></div>
+        </div>
+        
+        <!-- USERS PANEL VISIBLE -->
+        <div id="mgmt-users" class="panel" style="display:none">
+            <div class="panel-header"><h3>System Users</h3><button class="btn btn-danger" onclick="window.openModal('user')"><i class="fa-solid fa-plus"></i> Add User</button></div>
+            <div class="table-responsive"><table id="table-users"></table></div>
+        </div>
+    </section>
+
+    <!-- STOCK REPORT SECTION -->
+    <section id="reports" class="section">
+        <h2><i class="fa-solid fa-warehouse"></i> Stock Report</h2>
+        <div class="panel">
+            <div class="panel-header"><h3>Current Inventory Status</h3> <button class="btn btn-secondary" onclick="window.printStockReport()"><i class="fa-solid fa-print"></i> Print Report</button></div>
+            <div class="table-responsive"><table id="stock-report-table"></table></div>
+        </div>
+    </section>
+</main>
+
+<!-- ADD/EDIT MODAL -->
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="window.closeModal()">&times;</span>
+        <h3 id="modal-title" style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 10px;">Add New</h3>
+        <form id="modal-form" onsubmit="window.saveModalData(event)">
+            <div id="modal-fields"></div>
+            <button type="submit" class="btn btn-success" style="width:100%; margin-top:20px; font-size: 1.1rem;">Save Record</button>
+        </form>
+    </div>
+</div>
+
+<!-- EXCEL UPLOAD MODAL -->
+<div id="upload-modal" class="modal">
+    <div class="modal-content" style="width: 800px; max-width: 95%;">
+        <span class="close" onclick="window.closeUploadModal()">&times;</span>
+        <h3 id="upload-title" style="margin-top:0; border-bottom:1px solid #eee; padding-bottom: 10px;">Upload Excel Data</h3>
+        
+        <div style="background: #e8f4fd; padding: 15px; border-radius:5px; margin-bottom: 15px; font-size: 0.9rem;">
+            <strong>Instructions:</strong><br>
+            1. The first row of your Excel file must contain Headers.<br>
+            2. <strong>MPO Headers:</strong> ID, Name, Territory, Area, Region, <strong>CategoryProd</strong>, <strong>CategoryGift</strong>, Sales, DepotId (Optional), isActive (Optional - true/false)<br>
+            3. <strong>Product/Gift Headers:</strong> ID, Name, Pack, Unit, QtyA, QtyB, QtyC, QtyD, QtyE, ReceivedStock, DepotId (Optional), isActive (Optional - true/false)
+        </div>
+
+        <div class="form-group">
+            <label>Select Excel File (.xlsx, .xls)</label>
+            <input type="file" id="excel-file" accept=".xlsx, .xls" style="padding: 10px; border: 1px solid var(--border); width: 100%;">
+        </div>
+
+        <!-- Preview Area -->
+        <div id="upload-status" style="margin-bottom: 15px; color: var(--secondary);"></div>
+        <div class="table-responsive" style="max-height: 300px; overflow-y: auto; border: 1px solid #eee; margin-bottom: 20px; display:none;" id="upload-preview-container">
+            <table id="upload-preview-table" style="font-size: 0.85rem;">
+                <!-- Preview data goes here -->
+            </table>
+        </div>
+
+        <div style="text-align: right;">
+            <button class="btn btn-secondary" onclick="window.closeUploadModal()">Cancel</button>
+            <button class="btn btn-success" id="btn-confirm-upload" onclick="window.confirmExcelUpload()" disabled>Confirm Upload to Database</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div id="toast">Message</div>
+
+<!-- CHALLAN PRINT AREA (HIDDEN FROM SCREEN) -->
+<div id="print-area">
+    <div class="print-title">SAMPLE/GIFT/PPM ISSUED INFO</div>
+    
+    <div class="print-header">
+        <!-- LEFT SIDE -->
+        <div class="print-col">
+            MPO ID : <span id="p-mpo-id"></span><br>
+            MPO Name : <span id="p-mpo-name"></span><br>
+            Territory : <span id="p-territory"></span><br>
+            Area : <span id="p-area"></span><br>
+        </div>
+
+        <!-- CENTER SIDE -->
+        <div class="print-col center">
+            DA Name: <span id="p-da-name"></span><br>
+            DA ID : <span id="p-da-id"></span><br>
+            Depot : <span id="p-depot"></span><br>
+            Region : <span id="p-region"></span><br>
+        </div>
+
+        <!-- RIGHT SIDE -->
+        <div class="print-col right">
+            Challan No: <span id="p-ch-no"></span><br>
+            Date : <span id="p-date"></span><br>
+            TP Sales P.M: <span id="p-tp-sales"></span><br>
+            Category : <span id="p-cat"></span>
+        </div>
+    </div>
+
+    <table class="print-table">
+        <thead>
+            <tr>
+                <th width="50">#</th>
+                <th width="100">Item ID</th>
+                <th>Item Name</th>
+                <th width="100">Pack Size</th>
+                <th width="80">Quantity</th>
+                <th width="80">Unit</th>
+            </tr>
+        </thead>
+        <tbody id="p-table-body"></tbody>
+    </table>
+    <div style="margin-top: 20px; text-align: right; font-weight: bold; font-size: 14px;">Grand Total : <span id="p-total-qty">0</span> CC</div>
+    
+    <div class="footer-note">
+        নোটিশ : কিছু কম পেলে সাথে সাথে ডিপো ইনচার্জকে ফোন করে জানাতে হবে
+    </div>
+    
+    <!-- SIGNATURE FOOTER -->
+    <div style="margin-top: 60px; display: flex; justify-content: space-between; width: 100%;">
+        <div style="width: 33%; text-align: left;">
+            <div style="border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px;"></div>
+            <div style="font-weight: bold; font-size: 12px; text-transform: uppercase;">Sign By MPO</div>
+        </div>
+        <div style="width: 33%; text-align: center;">
+            <div style="border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px;"></div>
+            <div style="font-weight: bold; font-size: 12px; text-transform: uppercase;">Sign By DA</div>
+        </div>
+        <div style="width: 33%; text-align: right;">
+            <div style="border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px;"></div>
+            <div style="font-weight: bold; font-size: 12px; text-transform: uppercase;">Sign By Depot In-charge</div>
+        </div>
+    </div>
+</div>
+
+<!-- STOCK REPORT PRINT AREA (HIDDEN FROM SCREEN) -->
+<div id="print-stock-area">
+    <div class="stock-print-title">Stock Report</div>
+    <div class="stock-print-info">
+        <span>Date: <span id="sp-date"></span></span>
+        <span>Depot: <span id="sp-depot"></span></span>
+    </div>
+    <table class="print-table">
+        <thead>
+            <tr>
+                <th width="80">ID</th>
+                <th>Name</th>
+                <th width="80">Pack</th>
+                <th width="60">Unit</th>
+                <th width="80">Received</th>
+                <th width="80">Used</th>
+                <th width="80">Closing</th>
+            </tr>
+        </thead>
+        <tbody id="sp-table-body"></tbody>
+    </table>
+    
+    <div style="margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
+        <div style="text-align: left; font-weight: bold; border-top: 1px solid #000; padding-top: 10px; font-size: 11px; width: 40%;">
+            End of Report
+        </div>
+        <div style="text-align: right; width: 40%;">
+            <div style="border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px;"></div>
+            <div style="font-weight: bold; text-transform: uppercase;">Sign By DIC</div>
+        </div>
+    </div>
+</div>
+
+<!-- FIREBASE & APPLICATION LOGIC -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set, remove, push, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+    // --- FIREBASE CONFIGURATION ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyD3DBNkMcvm9RF1QNd6g37mn-todxR4THQ",
+        authDomain: "mplfpdc.firebaseapp.com",
+        databaseURL: "https://mplfpdc-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "mplfpdc",
+        storageBucket: "mplfpdc.firebasestorage.app",
+        messagingSenderId: "1004917483554",
+        appId: "1:1004917483554:web:91ee71365c64869e07027b",
+        measurementId: "G-S3JLB16V13"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // --- GLOBAL STATE ---
+    let currentUser = null; 
+    let currentDepotFilter = 'ALL'; 
+    let allDepots = new Set();
+
+    let data = {
+        mpos: [], das: [], prods: [], gifts: [], challans: [], users: []
+    };
+    
+    let currentMPO = null;
+    let selectedProducts = new Set();
+    let selectedGifts = new Set();
+    let selectedMpoForDialog = null;
+    
+    // NEW STATE FOR MANUAL GENERATOR
+    let manualSelections = {}; // Object: { prodId: quantity }
+
+    let editType = null; 
+    let editId = null;
+
+    // --- AUTHENTICATION & LOGIN ---
+    // FIX: Defined standard function and attached listener in JS instead of inline HTML
+    function handleLogin(e) {
+        e.preventDefault();
+        const u = e.target.username.value.trim();
+        const p = e.target.password.value.trim();
+        const errDiv = document.getElementById('login-error');
+        errDiv.style.display = 'none';
+
+        // Admin Hardcoded Login
+        if (u === 'KS' && p === 'Monico@Ku007') {
+            currentUser = { username: 'KS', role: 'admin', depotId: null };
+            completeLogin();
+            return;
+        }
+
+        // User Login from Firebase DB
+        fetch('https://mplfpdc-default-rtdb.europe-west1.firebasedatabase.app/users.json')
+            .then(res => res.json())
+            .then(users => {
+                if (users) {
+                    const foundUser = Object.values(users).find(user => user.username.toLowerCase() === u.toLowerCase() && user.password === p);
+                    if (foundUser) {
+                        currentUser = { username: foundUser.username, role: 'user', depotId: foundUser.depotId };
+                        completeLogin();
+                    } else {
+                        showLoginError("Invalid Credentials");
+                    }
+                } else {
+                    showLoginError("Invalid Credentials");
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showLoginError("Connection Error");
+            });
+    }
+
+    // Attach Event Listener
+    const loginForm = document.getElementById('login-form');
+    if(loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+    }
+
+    function showLoginError(msg) {
+        const errDiv = document.getElementById('login-error');
+        errDiv.innerText = msg;
+        errDiv.style.display = 'block';
+    }
+
+    function completeLogin() {
+        document.getElementById('login-overlay').style.display = 'none';
+        document.getElementById('u-name').innerText = currentUser.username + (currentUser.role === 'admin' ? ' (Admin)' : '');
+        
+        if (currentUser.role === 'admin') {
+            document.getElementById('depot-filter-container').style.display = 'block';
+            document.getElementById('btn-mgmt-users').style.display = 'inline-flex'; 
+        } else {
+            currentDepotFilter = currentUser.depotId;
+            document.getElementById('depot-filter-container').style.display = 'none';
+            document.getElementById('btn-mgmt-users').style.display = 'none';
+        }
+
+        initDataListeners();
+    }
+
+    window.logout = function() {
+        location.reload();
+    };
+
+    window.changeDepotFilter = function() {
+        currentDepotFilter = document.getElementById('global-depot-filter').value;
+        updateUI();
+    };
+
+    function getFilteredData(rawData) {
+        if (!rawData) return [];
+        let result = [];
+        if (currentUser.role === 'admin' && currentDepotFilter === 'ALL') {
+            result = rawData;
+        } else if (currentUser.role === 'admin' && currentDepotFilter !== 'ALL') {
+            result = rawData.filter(item => item.depotId === currentDepotFilter);
+        } else {
+            result = rawData.filter(item => item.depotId === currentUser.depotId);
+        }
+        return result;
+    }
+
+    function initDataListeners() {
+        document.getElementById('loader').style.display = 'block';
+
+        const listen = (path, key) => {
+            onValue(ref(db, path), (snapshot) => {
+                data[key] = [];
+                if(snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const item = childSnapshot.val();
+                        item.key = childSnapshot.key; 
+                        data[key].push(item);
+                        if(item.depotId) allDepots.add(item.depotId);
+                    });
+                }
+                updateUI();
+            });
+        };
+
+        listen('mpos', 'mpos');
+        listen('das', 'das');
+        listen('prods', 'prods');
+        listen('gifts', 'gifts');
+        listen('challans', 'challans');
+        listen('users', 'users');
+    }
+
+    function updateUI() {
+        document.getElementById('loader').style.display = 'none';
+        
+        const fMpos = getFilteredData(data.mpos);
+        const fDas = getFilteredData(data.das);
+        const fProds = getFilteredData(data.prods);
+        const fGifts = getFilteredData(data.gifts);
+        const fChallans = getFilteredData(data.challans);
+        const fUsers = currentUser.role === 'admin' ? data.users : [];
+
+        const activeMpos = fMpos.filter(m => m.isActive !== false);
+        document.getElementById('d-total-mpo').innerText = activeMpos.length;
+        document.getElementById('d-total-prod').innerText = fProds.length;
+        document.getElementById('d-total-gifts').innerText = fGifts.length;
+        document.getElementById('d-total-da').innerText = fDas.length;
+        
+        // UPDATED: Split Challan Counts
+        const prodChallans = fChallans.filter(c => c.type === 'Product').length;
+        const giftChallans = fChallans.filter(c => c.type === 'Gift').length;
+        document.getElementById('d-total-prod-challan').innerText = prodChallans;
+        document.getElementById('d-total-gift-challan').innerText = giftChallans;
+
+        // CATEGORY A-E LOGIC
+        let catStats = { 
+            'A': { sales: 0, count: 0 }, 
+            'B': { sales: 0, count: 0 }, 
+            'C': { sales: 0, count: 0 },
+            'D': { sales: 0, count: 0 },
+            'E': { sales: 0, count: 0 } 
+        };
+
+        activeMpos.forEach(m => {
+            const cat = m.categoryProd || m.category || 'A'; 
+            if(catStats[cat]) {
+                catStats[cat].sales += Number(m.sales || 0);
+                catStats[cat].count++;
+            }
+        });
+
+        document.getElementById('cat-sales-A').innerText = catStats['A'].sales.toLocaleString();
+        document.getElementById('cat-sales-B').innerText = catStats['B'].sales.toLocaleString();
+        document.getElementById('cat-sales-C').innerText = catStats['C'].sales.toLocaleString();
+        document.getElementById('cat-sales-D').innerText = catStats['D'].sales.toLocaleString();
+        document.getElementById('cat-sales-E').innerText = catStats['E'].sales.toLocaleString();
+
+        document.getElementById('cat-mpo-A').innerText = catStats['A'].count;
+        document.getElementById('cat-mpo-B').innerText = catStats['B'].count;
+        document.getElementById('cat-mpo-C').innerText = catStats['C'].count;
+        document.getElementById('cat-mpo-D').innerText = catStats['D'].count;
+        document.getElementById('cat-mpo-E').innerText = catStats['E'].count;
+
+        window.populateSelects(activeMpos, fDas);
+        
+        window.renderMgmtTables(fMpos, fProds, fGifts, fDas, fUsers);
+        window.renderChallans(fChallans, fMpos);
+        
+        window.renderCategoryView(activeMpos);
+        window.renderStockReport(fProds, fGifts, fChallans);
+
+        if(currentUser.role === 'admin') {
+            const select = document.getElementById('global-depot-filter');
+            const currentVal = select.value;
+            select.innerHTML = '<option value="ALL">All Depots</option>';
+            Array.from(allDepots).sort().forEach(depot => {
+                select.innerHTML += `<option value="${depot}">${depot}</option>`;
+            });
+            select.value = currentVal;
+        }
+
+        const mpoId = document.getElementById('gen-mpo').value;
+        if(mpoId) window.loadMPODetails();
+        const mpoIdGift = document.getElementById('gen-mpo-gift').value;
+        if(mpoIdGift) window.loadGiftMPODetails();
+        
+        // UPDATE MANUAL SELECT
+        const manualMpoId = document.getElementById('manual-mpo').value;
+        if(manualMpoId) window.loadManualMPODetails();
+    }
+
+    window.nav = function(id) {
+        document.querySelectorAll('.section').forEach(s => { s.classList.remove('active'); s.style.display = 'none'; });
+        const target = document.getElementById(id);
+        if (target) { target.classList.add('active'); target.style.display = 'block'; }
+        
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(btn => {
+            if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${id}'`)) btn.classList.add('active');
+        });
+        window.scrollTo(0, 0);
+
+        if(id === 'reports') window.renderStockReport(getFilteredData(data.prods), getFilteredData(data.gifts), getFilteredData(data.challans));
+        if(id === 'challans') window.renderChallans(getFilteredData(data.challans), getFilteredData(data.mpos));
+    };
+
+    window.showMgmt = function(type) {
+        ['mpo', 'prod', 'gift', 'da', 'users'].forEach(t => {
+            const el = document.getElementById('mgmt-'+t);
+            if(el) el.style.display = (t === type) ? 'block' : 'none';
+        });
+    };
+
+    window.showToast = function(msg) {
+        const x = document.getElementById("toast");
+        x.innerText = msg;
+        x.className = "show";
+        setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
+    };
+
+    let searchQuery = '';
+    window.filterCategoryView = function() {
+        searchQuery = document.getElementById('mpo-search-input').value.toLowerCase();
+        window.renderCategoryView(getFilteredData(data.mpos).filter(m => m.isActive !== false));
+    };
+    window.clearMpoSearch = function() {
+        document.getElementById('mpo-search-input').value = '';
+        searchQuery = '';
+        window.renderCategoryView(getFilteredData(data.mpos).filter(m => m.isActive !== false));
+    };
+
+    window.renderCategoryView = function(mpos) {
+        const container = document.getElementById('cat-grid-container');
+        container.innerHTML = '';
+        const categories = ['A', 'B', 'C', 'D', 'E']; 
+
+        categories.forEach(cat => {
+            let mposInCat = mpos.filter(m => {
+                const mpoCat = m.categoryProd || m.category || 'A';
+                return mpoCat === cat;
+            });
+
+            const filteredMpos = mposInCat.filter(m => {
+                const nameMatch = m.name.toLowerCase().includes(searchQuery);
+                const idMatch = m.id.toLowerCase().includes(searchQuery);
+                return nameMatch || idMatch;
+            });
+
+            const totalSales = filteredMpos.reduce((sum, m) => sum + (Number(m.sales) || 0), 0);
+            const mpoCount = filteredMpos.length;
+
+            let mpoListHtml = '';
+            if(filteredMpos.length === 0) {
+                mpoListHtml = '<div style="padding:15px; text-align:center; color:#999;">No MPOs found.</div>';
+            } else {
+                filteredMpos.forEach(m => {
+                    mpoListHtml += `
+                        <div class="cat-mpo-item">
+                            <div class="cat-mpo-info">
+                                <strong>${m.name}</strong>
+                                <small>ID: ${m.id} | ${m.territory}</small>
+                            </div>
+                            <div class="cat-mpo-actions">
+                                <button class="btn-gen-prod" onclick="window.directToGen('prod', '${m.id}')"><i class="fa-solid fa-box"></i> Prod</button>
+                                <button class="btn-gen-gift" onclick="window.directToGen('gift', '${m.id}')"><i class="fa-solid fa-gift"></i> Gift</button>
+                            </div>
+                        </div>`;
+                });
+            }
+
+            container.innerHTML += `
+                <div class="cat-card type-${cat}">
+                    <div class="cat-header ${cat}">
+                        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                            <h3 style="margin:0; font-size:1.1rem; font-weight:700;">Category ${cat}</h3>
+                            
+                            <div style="text-align:right; line-height:1.1;">
+                                <div style="font-weight:bold; font-size:0.95rem;">${totalSales.toLocaleString()}</div>
+                                <div style="font-size:0.75rem; opacity:0.9;">${mpoCount} MPOs</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="cat-body">${mpoListHtml}</div>
+                </div>`;
+        });
+    }
+
+    window.populateSelects = function(fMpos, fDas) {
+        const mpoSel = document.getElementById('gen-mpo');
+        const mpoSelGift = document.getElementById('gen-mpo-gift');
+        const mpoSelManual = document.getElementById('manual-mpo'); // NEW
+        const filterSel = document.getElementById('filter-mpo');
+        const currentMpo = mpoSel.value;
+        const currentFilter = filterSel.value;
+
+        mpoSel.innerHTML = '<option value="">-- Choose MPO --</option>';
+        mpoSelGift.innerHTML = '<option value="">-- Choose MPO --</option>';
+        mpoSelManual.innerHTML = '<option value="">-- Choose MPO --</option>'; // NEW
+        filterSel.innerHTML = '<option value="">All MPOs</option>';
+        
+        if(fMpos && fMpos.length) {
+            fMpos.forEach(m => {
+                const catDisplay = `P: ${m.categoryProd||'-'} / G: ${m.categoryGift||'-'}`;
+                const opt = `<option value="${m.id}">${m.name} (${m.id}) [${catDisplay}]</option>`;
+                mpoSel.innerHTML += opt;
+                mpoSelGift.innerHTML += opt;
+                mpoSelManual.innerHTML += opt; // NEW
+                filterSel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+            });
+        }
+
+        mpoSel.value = currentMpo;
+        mpoSelGift.value = ""; 
+        filterSel.value = currentFilter;
+    };
+
+    window.loadMPODetails = function() {
+        const id = document.getElementById('gen-mpo').value;
+        const fMpos = getFilteredData(data.mpos).filter(m => m.isActive !== false);
+        const fDas = getFilteredData(data.das);
+        const fProds = getFilteredData(data.prods);
+
+        const details = document.getElementById('mpo-details');
+        const daSel = document.getElementById('gen-da');
+        const listContainer = document.getElementById('product-list-container');
+        
+        if (!id) {
+            details.style.display = 'none';
+            daSel.disabled = true;
+            daSel.innerHTML = '<option value="">-- Choose DA --</option>';
+            listContainer.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">Select MPO to view products</div>';
+            currentMPO = null;
+            selectedProducts.clear();
+            updateCount('prod');
+            return;
+        }
+
+        currentMPO = fMpos.find(m => m.id === id);
+        if(!currentMPO) return; 
+
+        document.getElementById('d-name').innerText = currentMPO.name;
+        document.getElementById('d-territory').innerText = currentMPO.territory;
+        document.getElementById('d-area').innerText = currentMPO.area || '-';
+        document.getElementById('d-region').innerText = currentMPO.region || '-';
+        document.getElementById('d-cat').innerText = currentMPO.categoryProd || currentMPO.category || '-';
+        document.getElementById('d-sales').innerText = currentMPO.sales ? Number(currentMPO.sales).toLocaleString() : '0';
+        details.style.display = 'block';
+
+        daSel.disabled = false;
+        daSel.innerHTML = '<option value="">-- Choose DA --</option>';
+        const mpoDepotDas = fDas.filter(d => d.depotId === currentMPO.depotId);
+        mpoDepotDas.forEach(d => {
+            const sel = d.id === currentMPO.daId ? 'selected' : '';
+            daSel.innerHTML += `<option value="${d.id}" ${sel}>${d.name}</option>`;
+        });
+
+        listContainer.innerHTML = '';
+        selectedProducts.clear();
+        const cat = currentMPO.categoryProd || currentMPO.category || 'A';
+        
+        fProds.forEach(p => {
+            if (p.isActive === false || p.isActive === 'false') return;
+
+            let qty = 0;
+            if(cat === 'A') qty = p.qtyA || 0;
+            else if(cat === 'B') qty = p.qtyB || 0;
+            else if(cat === 'C') qty = p.qtyC || 0;
+            else if(cat === 'D') qty = p.qtyD || 0;
+            else if(cat === 'E') qty = p.qtyE || 0;
+            else qty = 0;
+
+            // HIDE PRODUCTS WITH ZERO QUANTITY
+            if (qty <= 0) return;
+
+            const div = document.createElement('div');
+            div.className = 'product-list-item';
+            div.innerHTML = `
+                <input type="checkbox" class="prod-cb" value="${p.id}" onchange="window.toggleProd('${p.id}')">
+                <div class="product-list-info">
+                    <strong>${p.name}</strong>
+                    <span>ID: ${p.id} | Pack: ${p.pack} | Unit: ${p.unit}</span>
+                </div>
+                <div class="product-qty">Avail: ${qty}</div>
+            `;
+            listContainer.appendChild(div);
+        });
+        updateCount('prod');
+    };
+
+    window.toggleProd = function(id) {
+        if(selectedProducts.has(id)) selectedProducts.delete(id);
+        else selectedProducts.add(id);
+        updateCount('prod');
+    };
+    window.toggleSelectAll = function() {
+        const cbs = document.querySelectorAll('.prod-cb');
+        const state = Array.from(cbs).every(cb => cb.checked);
+        cbs.forEach(cb => {
+            cb.checked = !state;
+            if(!state) selectedProducts.add(cb.value);
+            else selectedProducts.delete(cb.value);
+        });
+        updateCount('prod');
+    };
+
+    window.loadGiftMPODetails = function() {
+        const id = document.getElementById('gen-mpo-gift').value;
+        const fMpos = getFilteredData(data.mpos).filter(m => m.isActive !== false);
+        const fDas = getFilteredData(data.das);
+        const fGifts = getFilteredData(data.gifts);
+        
+        const details = document.getElementById('mpo-details-gift');
+        const daSel = document.getElementById('gen-da-gift');
+        const listContainer = document.getElementById('gift-list-container');
+        
+        if (!id) {
+            details.style.display = 'none';
+            daSel.disabled = true;
+            daSel.innerHTML = '<option value="">-- Choose DA --</option>';
+            listContainer.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">Select MPO to view gifts</div>';
+            return;
+        }
+
+        currentMPO = fMpos.find(m => m.id === id);
+        document.getElementById('d-name-gift').innerText = currentMPO.name;
+        document.getElementById('d-territory-gift').innerText = currentMPO.territory;
+        document.getElementById('d-cat-gift').innerText = currentMPO.categoryGift || '-';
+        details.style.display = 'block';
+
+        daSel.disabled = false;
+        daSel.innerHTML = '<option value="">-- Choose DA --</option>';
+        const mpoDepotDas = fDas.filter(d => d.depotId === currentMPO.depotId);
+        mpoDepotDas.forEach(d => {
+            const sel = d.id === currentMPO.daId ? 'selected' : '';
+            daSel.innerHTML += `<option value="${d.id}" ${sel}>${d.name}</option>`;
+        });
+
+        listContainer.innerHTML = '';
+        selectedGifts.clear();
+        const cat = currentMPO.categoryGift || 'A';
+        
+        fGifts.forEach(p => {
+            if (p.isActive === false || p.isActive === 'false') return;
+
+            let qty = 0;
+            if(cat === 'A') qty = p.qtyA || 0;
+            else if(cat === 'B') qty = p.qtyB || 0;
+            else if(cat === 'C') qty = p.qtyC || 0;
+            else if(cat === 'D') qty = p.qtyD || 0;
+            else if(cat === 'E') qty = p.qtyE || 0;
+            else qty = 0;
+
+            const div = document.createElement('div');
+            div.className = 'product-list-item';
+            div.innerHTML = `
+                <input type="checkbox" class="gift-cb" value="${p.id}" onchange="window.toggleGift('${p.id}')">
+                <div class="product-list-info"><strong>${p.name}</strong><span>ID: ${p.id} | Pack: ${p.pack}</span></div>
+                <div class="product-qty" style="color:var(--purple)">Avail: ${qty}</div>
+            `;
+            listContainer.appendChild(div);
+        });
+        updateCount('gift');
+    };
+
+    window.toggleGift = function(id) {
+        if(selectedGifts.has(id)) selectedGifts.delete(id);
+        else selectedGifts.add(id);
+        updateCount('gift');
+    };
+    window.toggleSelectGiftAll = function() {
+        const cbs = document.querySelectorAll('.gift-cb');
+        const state = Array.from(cbs).every(cb => cb.checked);
+        cbs.forEach(cb => {
+            cb.checked = !state;
+            if(!state) selectedGifts.add(cb.value);
+            else selectedGifts.delete(cb.value);
+        });
+        updateCount('gift');
+    };
+
+    function updateCount(type) {
+        if(type === 'prod') {
+            document.getElementById('selected-count').innerText = selectedProducts.size;
+            document.getElementById('btn-gen-prod').disabled = selectedProducts.size === 0;
+        } else if(type === 'gift') {
+            document.getElementById('selected-count-gift').innerText = selectedGifts.size;
+            document.getElementById('btn-gen-gift').disabled = selectedGifts.size === 0;
+        } else if(type === 'manual') {
+            const count = Object.keys(manualSelections).length;
+            document.getElementById('manual-total-items').innerText = count;
+            document.getElementById('btn-gen-manual').disabled = count === 0;
+        }
+    }
+
+    window.resetGenerator = function() {
+        document.getElementById('gen-mpo').value = "";
+        loadMPODetails();
+    };
+    window.resetGiftGenerator = function() {
+        document.getElementById('gen-mpo-gift').value = "";
+        loadGiftMPODetails();
+    };
+
+    // --- MANUAL GENERATOR LOGIC START ---
+    window.loadManualMPODetails = function() {
+        const id = document.getElementById('manual-mpo').value;
+        const fMpos = getFilteredData(data.mpos).filter(m => m.isActive !== false);
+        const fDas = getFilteredData(data.das);
+        const fProds = getFilteredData(data.prods);
+
+        const details = document.getElementById('manual-mpo-details');
+        const daSel = document.getElementById('manual-da');
+        const listContainer = document.getElementById('manual-product-list-container');
+        
+        if (!id) {
+            details.style.display = 'none';
+            daSel.disabled = true;
+            daSel.innerHTML = '<option value="">-- Choose DA --</option>';
+            listContainer.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">Select MPO to view products</div>';
+            manualSelections = {};
+            updateCount('manual');
+            return;
+        }
+
+        currentMPO = fMpos.find(m => m.id === id);
+        if(!currentMPO) return;
+
+        document.getElementById('md-name').innerText = currentMPO.name;
+        document.getElementById('md-territory').innerText = currentMPO.territory;
+        document.getElementById('md-depot').innerText = currentMPO.depotId || 'N/A';
+        details.style.display = 'block';
+
+        daSel.disabled = false;
+        daSel.innerHTML = '<option value="">-- Choose DA --</option>';
+        const mpoDepotDas = fDas.filter(d => d.depotId === currentMPO.depotId);
+        mpoDepotDas.forEach(d => {
+            const sel = d.id === currentMPO.daId ? 'selected' : '';
+            daSel.innerHTML += `<option value="${d.id}" ${sel}>${d.name}</option>`;
+        });
+
+        listContainer.innerHTML = '';
+        manualSelections = {};
+        
+        // Show all products, not filtered by category, for manual selection
+        fProds.forEach(p => {
+            if (p.isActive === false || p.isActive === 'false') return;
+
+            const div = document.createElement('div');
+            div.className = 'product-list-item';
+            div.innerHTML = `
+                <div class="product-list-info">
+                    <strong>${p.name}</strong>
+                    <span>ID: ${p.id} | Pack: ${p.pack} | Unit: ${p.unit}</span>
+                </div>
+                <input type="number" min="0" class="manual-qty-input" placeholder="0" onchange="window.updateManualSelection('${p.id}', this.value)">
+            `;
+            listContainer.appendChild(div);
+        });
+        updateCount('manual');
+    };
+
+    window.updateManualSelection = function(prodId, qtyVal) {
+        const qty = parseInt(qtyVal);
+        if (qty && qty > 0) {
+            manualSelections[prodId] = qty;
+        } else {
+            delete manualSelections[prodId];
+        }
+        updateCount('manual');
+    };
+
+    window.resetManualGenerator = function() {
+        document.getElementById('manual-mpo').value = "";
+        loadManualMPODetails();
+    };
+
+    window.generateManualChallan = function() {
+        if(!currentMPO || Object.keys(manualSelections).length === 0) return;
+
+        const fProds = getFilteredData(data.prods);
+        const itemsArray = [];
+        
+        // Build items array based on manual input
+        for (const [pid, qty] of Object.entries(manualSelections)) {
+            const p = fProds.find(x => x.id === pid);
+            if(p) {
+                itemsArray.push({ ...p, issueQty: qty });
+            }
+        }
+
+        const daId = document.getElementById('manual-da').value;
+        const dateObj = new Date();
+        const year = dateObj.getFullYear();
+        const month = ("0" + (dateObj.getMonth() +1)).slice(-2);
+        
+        let depotCode = "KS"; 
+        let assignedDepotId = currentUser.depotId; 
+        
+        if (currentUser.role === 'admin') {
+            assignedDepotId = currentMPO.depotId || 'ALL'; 
+        }
+
+        if(assignedDepotId && assignedDepotId !== 'ALL') {
+            depotCode = assignedDepotId.substring(0, 2).toUpperCase();
+        }
+
+        const dateCode = `${year}${month}`;
+        const basePrefix = `${depotCode}${dateCode}`;
+        
+        let maxSerial = 0;
+        if(data.challans) {
+            data.challans.forEach(c => { 
+                if(c.id && c.id.startsWith(basePrefix)) {
+                    const serial = parseInt(c.id.slice(-3));
+                    if(!isNaN(serial) && serial > maxSerial) maxSerial = serial;
+                }
+            });
+        }
+
+        const newSerial = maxSerial + 1;
+        const serialStr = newSerial.toString().padStart(3, '0');
+        const challanNo = `${basePrefix}${serialStr}`;
+        
+        const cat = currentMPO.categoryProd || currentMPO.category || 'A'; // Just for record, though manual
+
+        const newChallan = {
+            id: challanNo,
+            date: dateObj.toLocaleDateString('en-GB'),
+            timestamp: Date.now(),
+            type: 'Product', // It's a product challan
+            isManual: true, // Flag to identify manual challans if needed later
+            mpoId: currentMPO.id,
+            mpoName: currentMPO.name,
+            mpoTerritory: currentMPO.territory,
+            mpoArea: currentMPO.area || '', 
+            mpoRegion: currentMPO.region || '', 
+            mpoCat: cat,
+            mpoSales: currentMPO.sales,
+            daId: daId,
+            items: itemsArray,
+            depotId: assignedDepotId
+        };
+
+        push(ref(db, 'challans'), newChallan).then(() => {
+            showToast("Manual Challan Generated & Saved!");
+            manualSelections = {};
+            updateCount('manual');
+            window.nav('challans');
+        }).catch(err => showToast("Error: " + err.message));
+    };
+    // --- MANUAL GENERATOR LOGIC END ---
+
+    window.generateChallan = function(type) {
+        let itemsArray = [];
+        let fProds = getFilteredData(data.prods);
+        let fGifts = getFilteredData(data.gifts);
+
+        if(type === 'prod') {
+            if(!currentMPO || selectedProducts.size === 0) return;
+            itemsArray = Array.from(selectedProducts).map(pid => fProds.find(x => x.id === pid));
+        } else {
+            if(!currentMPO || selectedGifts.size === 0) return;
+            itemsArray = Array.from(selectedGifts).map(pid => fGifts.find(x => x.id === pid));
+        }
+
+        const daId = type === 'gift' ? document.getElementById('gen-da-gift').value : document.getElementById('gen-da').value;
+
+        const dateObj = new Date();
+        const year = dateObj.getFullYear();
+        const month = ("0" + (dateObj.getMonth() +1)).slice(-2);
+        
+        let depotCode = "KS"; 
+        let assignedDepotId = currentUser.depotId; // Default depot ID
+        
+        // --- FIX: If Admin, use MPO's depot ID ---
+        if (currentUser.role === 'admin') {
+            assignedDepotId = currentMPO.depotId || 'ALL'; 
+        }
+
+        if(assignedDepotId && assignedDepotId !== 'ALL') {
+            depotCode = assignedDepotId.substring(0, 2).toUpperCase();
+        }
+
+        const dateCode = `${year}${month}`;
+        const basePrefix = `${depotCode}${dateCode}`;
+        
+        let maxSerial = 0;
+        if(data.challans) {
+            data.challans.forEach(c => { 
+                if(c.id && c.id.startsWith(basePrefix)) {
+                    const serial = parseInt(c.id.slice(-3));
+                    if(!isNaN(serial) && serial > maxSerial) maxSerial = serial;
+                }
+            });
+        }
+
+        const newSerial = maxSerial + 1;
+        const serialStr = newSerial.toString().padStart(3, '0');
+        const challanNo = `${basePrefix}${serialStr}`;
+        
+        let cat = '';
+        if(type === 'prod') {
+            cat = currentMPO.categoryProd || currentMPO.category || 'A';
+        } else {
+            cat = currentMPO.categoryGift || 'A';
+        }
+
+        const items = itemsArray.map(item => {
+            let qty = 0;
+            if(cat === 'A') qty = item.qtyA || 0;
+            else if(cat === 'B') qty = item.qtyB || 0;
+            else if(cat === 'C') qty = item.qtyC || 0;
+            else if(cat === 'D') qty = item.qtyD || 0;
+            else if(cat === 'E') qty = item.qtyE || 0;
+            else qty = 0;
+            
+            return { ...item, issueQty: qty };
+        });
+
+        const newChallan = {
+            id: challanNo,
+            date: dateObj.toLocaleDateString('en-GB'),
+            timestamp: Date.now(),
+            type: type === 'gift' ? 'Gift' : 'Product',
+            mpoId: currentMPO.id,
+            mpoName: currentMPO.name,
+            mpoTerritory: currentMPO.territory,
+            mpoArea: currentMPO.area || '', 
+            mpoRegion: currentMPO.region || '', 
+            mpoCat: cat, // Saves relevant category used
+            mpoSales: currentMPO.sales,
+            daId: daId,
+            items: items,
+            depotId: assignedDepotId // Use calculated ID (Admin uses MPO's ID)
+        };
+
+        push(ref(db, 'challans'), newChallan).then(() => {
+            showToast("Challan Generated & Saved!");
+            if(type === 'gift') { selectedGifts.clear(); updateCount('gift'); } 
+            else { selectedProducts.clear(); updateCount('prod'); }
+            window.nav('challans');
+        }).catch(err => showToast("Error: " + err.message));
+    };
+
+    window.directToGen = function(type, mpoId) {
+        selectedMpoForDialog = mpoId;
+        const targetId = type === 'prod' ? 'generator' : 'giftGenerator';
+        document.querySelectorAll('.section').forEach(el => { el.classList.remove('active'); el.style.display = 'none'; });
+        const targetSection = document.getElementById(targetId);
+        if (targetSection) { targetSection.classList.add('active'); targetSection.style.display = 'block'; }
+        
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(b => { 
+            if(b.getAttribute('onclick') && b.getAttribute('onclick').includes(`'${targetId}'`)) b.classList.add('active'); 
+        });
+        
+        window.scrollTo(0, 0);
+        
+        setTimeout(() => {
+            const mpoSelect = document.getElementById(type==='prod'?'gen-mpo':'gen-mpo-gift');
+            if(mpoSelect) {
+                mpoSelect.value = selectedMpoForDialog;
+                if(type==='prod') loadMPODetails(); else loadGiftMPODetails();
+            }
+        }, 50);
+    };
+
+    window.clearChallanFilters = function() {
+        document.getElementById('filter-depot').value = "";
+        document.getElementById('filter-category').value = "";
+        document.getElementById('filter-mpo').value = "";
+        document.getElementById('filter-challan-no').value = "";
+        window.renderChallans();
+    }
+
+    window.renderChallans = function(fChallans, fMpos) {
+        if (!fChallans) fChallans = getFilteredData(data.challans);
+        if (!fMpos) fMpos = getFilteredData(data.mpos);
+
+        let availableDepots = new Set();
+        if(fMpos) fMpos.forEach(m => { if(m.depotId) availableDepots.add(m.depotId); });
+        if(fChallans) fChallans.forEach(c => { if(c.depotId) availableDepots.add(c.depotId); });
+
+        const depotSel = document.getElementById('filter-depot');
+        const currentDepotVal = depotSel.value;
+        
+        depotSel.innerHTML = '<option value="">All Depots</option>';
+        Array.from(availableDepots).sort().forEach(depot => {
+             depotSel.innerHTML += `<option value="${depot}">${depot}</option>`;
+        });
+        depotSel.value = currentDepotVal;
+
+        let availableMpos = fMpos;
+        if (depotSel.value) {
+            availableMpos = fMpos.filter(m => m.depotId === depotSel.value);
+        }
+
+        const mpoSel = document.getElementById('filter-mpo');
+        const currentMpoVal = mpoSel.value;
+        mpoSel.innerHTML = '<option value="">All MPOs</option>';
+        
+        if (availableMpos && availableMpos.length) {
+            availableMpos.forEach(m => {
+                mpoSel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
+            });
+        }
+        
+        const optionExists = Array.from(mpoSel.options).some(o => o.value === currentMpoVal);
+        mpoSel.value = optionExists ? currentMpoVal : "";
+
+        const mpoFilter = document.getElementById('filter-mpo').value;
+        const depotFilter = document.getElementById('filter-depot').value;
+        const challanFilter = document.getElementById('filter-challan-no').value.trim().toLowerCase();
+        const categoryFilter = document.getElementById('filter-category').value;
+        const viewMode = document.getElementById('view-mode').value;
+
+        const list = fChallans.filter(c => {
+            const matchesMPO = !mpoFilter || c.mpoId === mpoFilter;
+            const matchesDepot = !depotFilter || c.depotId === depotFilter;
+            const matchesChallan = !challanFilter || c.id.toLowerCase().includes(challanFilter);
+            const matchesCategory = !categoryFilter || c.mpoCat === categoryFilter;
+            return matchesMPO && matchesDepot && matchesChallan && matchesCategory;
+        }).sort((a,b) => b.timestamp - a.timestamp);
+
+        // UPDATE TOTAL COUNT DISPLAY
+        document.getElementById('challan-count-badge').innerText = `(Total: ${list.length})`;
+
+        const contentArea = document.getElementById('challan-content-area');
+        const noMsg = document.getElementById('no-challan-msg');
+
+        if (list.length === 0) {
+            contentArea.innerHTML = '';
+            noMsg.style.display = 'block';
+        } else {
+            noMsg.style.display = 'none';
+
+            if (viewMode === 'list') {
+                // --- FLAT LIST RENDERING ---
+                let html = `
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th width="80">Type</th>
+                                    <th>Challan No</th>
+                                    <th>Date</th>
+                                    <th>MPO Name</th>
+                                    <th width="60">Items</th>
+                                    <th width="160">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                
+                list.forEach(c => {
+                    const da = data.das.find(d => d.id === c.daId) || {name:'N/A'};
+                    let typeBadge = '';
+                    
+                    if(c.isManual) {
+                        typeBadge = '<span style="background:var(--warning); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Man-Prod</span>';
+                    } else if (c.type === 'Gift') {
+                        typeBadge = '<span style="background:var(--purple); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Gift</span>';
+                    } else {
+                        typeBadge = '<span style="background:var(--accent); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Prod</span>';
+                    }
+                    
+                    html += `
+                        <tr>
+                            <td>${typeBadge}</td>
+                            <td style="font-family:monospace; font-weight:bold;">${c.id}</td>
+                            <td>${c.date}</td>
+                            <td>${c.mpoName}</td>
+                            <td style="text-align:center">${c.items.length}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="window.printChallan('${c.key}', '${c.type}')"><i class="fa-solid fa-print"></i> Print</button>
+                                <!-- ADDED: DOWNLOAD PDF BUTTON -->
+                                <button class="btn btn-sm btn-success" onclick="window.downloadChallanPDF('${c.key}', '${c.type}')" title="Download PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                                <button class="btn btn-sm btn-danger" onclick="window.deleteChallan('${c.key}')"><i class="fa-solid fa-trash"></i></button>
+                            </td>
+                        </tr>`;
+                });
+                html += `</tbody></table></div>`;
+                contentArea.innerHTML = html;
+
+            } else {
+                // --- MONTH WISE RENDERING ---
+                const groupedByMonth = {};
+                list.forEach(c => {
+                    const dateObj = new Date(c.timestamp);
+                    const monthKey = dateObj.toLocaleString('en-GB', { month: 'long', year: 'numeric' }); 
+                    if (!groupedByMonth[monthKey]) groupedByMonth[monthKey] = [];
+                    groupedByMonth[monthKey].push(c);
+                });
+
+                const sortedMonths = Object.keys(groupedByMonth).sort((a,b) => {
+                    const d1 = new Date(a); 
+                    const d2 = new Date(b);
+                    return d2 - d1; 
+                });
+
+                let html = '';
+                sortedMonths.forEach(month => {
+                    const monthChallans = groupedByMonth[month];
+                    html += `
+                        <div class="month-group">
+                            <div class="month-header">
+                                <h4>${month}</h4>
+                                <span class="month-count">${monthChallans.length} Challans</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th width="80">Type</th>
+                                            <th>Challan No</th>
+                                            <th>Date</th>
+                                            <th>MPO Name</th>
+                                            <th width="60">Items</th>
+                                            <th width="160">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>`;
+                    
+                    monthChallans.forEach(c => {
+                        const da = data.das.find(d => d.id === c.daId) || {name:'N/A'};
+                        let typeBadge = '';
+                        
+                        if(c.isManual) {
+                            typeBadge = '<span style="background:var(--warning); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Man-Prod</span>';
+                        } else if (c.type === 'Gift') {
+                            typeBadge = '<span style="background:var(--purple); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Gift</span>';
+                        } else {
+                            typeBadge = '<span style="background:var(--accent); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Prod</span>';
+                        }
+
+                        html += `
+                            <tr>
+                                <td>${typeBadge}</td>
+                                <td style="font-family:monospace; font-weight:bold;">${c.id}</td>
+                                <td>${c.date}</td>
+                                <td>${c.mpoName}</td>
+                                <td style="text-align:center">${c.items.length}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary" onclick="window.printChallan('${c.key}', '${c.type}')"><i class="fa-solid fa-print"></i> Print</button>
+                                    <!-- ADDED: DOWNLOAD PDF BUTTON -->
+                                    <button class="btn btn-sm btn-success" onclick="window.downloadChallanPDF('${c.key}', '${c.type}')" title="Download PDF"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+                                    <button class="btn btn-sm btn-danger" onclick="window.deleteChallan('${c.key}')"><i class="fa-solid fa-trash"></i></button>
+                                </td>
+                            </tr>`;
+                    });
+                    html += `</tbody></table></div></div>`;
+                });
+                contentArea.innerHTML = html;
+            }
+        }
+    };
+
+    window.deleteChallan = function(key) {
+        if(confirm('Delete this challan?')) remove(ref(db, 'challans/' + key)).then(() => showToast("Challan Deleted"));
+    };
+
+    window.printChallan = function(key, type) {
+        const c = data.challans.find(x => x.key === key);
+        if(!c) return;
+        const da = data.das.find(d => d.id === c.daId) || {name: 'N/A', id: 'N/A'};
+        const depot = c.depotId || 'HQ';
+
+        document.getElementById('print-stock-area').style.display = 'none';
+        document.getElementById('print-area').style.display = 'block';
+
+        document.getElementById('p-mpo-id').innerText = c.mpoId;
+        document.getElementById('p-mpo-name').innerText = c.mpoName;
+        document.getElementById('p-territory').innerText = c.mpoTerritory;
+        document.getElementById('p-area').innerText = c.mpoArea || '-';
+        document.getElementById('p-depot').innerText = depot;
+        document.getElementById('p-region').innerText = c.mpoRegion || '-';
+        
+        document.getElementById('p-da-name').innerText = da.name;
+        document.getElementById('p-da-id').innerText = da.id;
+        document.getElementById('p-ch-no').innerText = c.id;
+        document.getElementById('p-date').innerText = c.date;
+        document.getElementById('p-tp-sales').innerText = c.mpoSales ? Number(c.mpoSales).toLocaleString() : '0';
+        document.getElementById('p-cat').innerText = c.mpoCat || '-';
+
+        const tbody = document.getElementById('p-table-body');
+        tbody.innerHTML = '';
+        let totalQty = 0;
+        c.items.forEach((item, index) => {
+            totalQty += parseInt(item.issueQty || 0);
+            tbody.innerHTML += `<tr><td style="text-align:center">${index+1}</td><td>${item.id}</td><td>${item.name}</td><td>${item.pack}</td><td style="text-align:center">${item.issueQty}</td><td style="text-align:center">${item.unit}</td></tr>`;
+        });
+        document.getElementById('p-total-qty').innerText = totalQty;
+        window.print();
+    };
+
+    // --- UPDATED: DOWNLOAD PDF FUNCTION ---
+    window.downloadChallanPDF = function(key, type) {
+        const c = data.challans.find(x => x.key === key);
+        if(!c) return;
+        const da = data.das.find(d => d.id === c.daId) || {name: 'N/A', id: 'N/A'};
+        const depot = c.depotId || 'HQ';
+
+        // 1. Populate Print Area (same logic as printChallan)
+        document.getElementById('print-stock-area').style.display = 'none';
+        const printArea = document.getElementById('print-area');
+        printArea.style.display = 'block';
+
+        document.getElementById('p-mpo-id').innerText = c.mpoId;
+        document.getElementById('p-mpo-name').innerText = c.mpoName;
+        document.getElementById('p-territory').innerText = c.mpoTerritory;
+        document.getElementById('p-area').innerText = c.mpoArea || '-';
+        document.getElementById('p-depot').innerText = depot;
+        document.getElementById('p-region').innerText = c.mpoRegion || '-';
+        
+        document.getElementById('p-da-name').innerText = da.name;
+        document.getElementById('p-da-id').innerText = da.id;
+        document.getElementById('p-ch-no').innerText = c.id;
+        document.getElementById('p-date').innerText = c.date;
+        document.getElementById('p-tp-sales').innerText = c.mpoSales ? Number(c.mpoSales).toLocaleString() : '0';
+        document.getElementById('p-cat').innerText = c.mpoCat || '-';
+
+        const tbody = document.getElementById('p-table-body');
+        tbody.innerHTML = '';
+        let totalQty = 0;
+        c.items.forEach((item, index) => {
+            totalQty += parseInt(item.issueQty || 0);
+            tbody.innerHTML += `<tr><td style="text-align:center">${index+1}</td><td>${item.id}</td><td>${item.name}</td><td>${item.pack}</td><td style="text-align:center">${item.issueQty}</td><td style="text-align:center">${item.unit}</td></tr>`;
+        });
+        document.getElementById('p-total-qty').innerText = totalQty;
+
+        // 2. FORCE BLACK TEXT FOR PDF CAPTURE
+        printArea.style.color = '#000000';
+        const allChildren = printArea.querySelectorAll('*');
+        allChildren.forEach(el => el.style.color = '#000000');
+
+        // 3. Generate PDF
+        const element = document.getElementById('print-area');
+        
+        const opt = {
+            margin:       10,
+            filename:     c.id + '.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
+            // Revert styles
+            printArea.style.color = '';
+            allChildren.forEach(el => el.style.color = '');
+            
+            // Hide print area again
+            printArea.style.display = 'none';
+            showToast("PDF Download Started...");
+        }).catch(err => {
+            console.error(err);
+            // Revert styles on error too
+            printArea.style.color = '';
+            allChildren.forEach(el => el.style.color = '');
+            printArea.style.display = 'none';
+            showToast("Error generating PDF");
+        });
+    };
+
+    window.renderStockReport = function(fProds, fGifts, fChallans) {
+        const table = document.getElementById('stock-report-table');
+        let realUsage = {};
+        
+        fChallans.forEach(c => {
+            if(c.items) {
+                c.items.forEach(item => {
+                    if(realUsage[item.id]) realUsage[item.id] += parseInt(item.issueQty || 0);
+                    else realUsage[item.id] = parseInt(item.issueQty || 0);
+                });
+            }
+        });
+
+        table.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Pack</th><th>Unit</th><th>Received</th><th>Used</th><th>Closing</th></tr></thead>`;
+        const allItems = [...fProds, ...fGifts];
+
+        allItems.forEach(p => {
+            const received = Number(p.receivedStock || 0);
+            const used = realUsage[p.id] || 0;
+            const closing = received - used;
+
+            // REMOVED: if (closing <= 0) return;
+            // NOW SHOWING EVERYTHING ON SCREEN (Even 0 or Negative)
+            
+            table.innerHTML += `<tr><td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${p.unit}</td><td>${received}</td><td>${used}</td><td style="font-weight:bold; color:${closing < 0 ? 'red' : 'green'}">${closing}</td></tr>`;
+        });
+    };
+
+    window.printStockReport = function() {
+        document.getElementById('print-area').style.display = 'none';
+        const stockPrintArea = document.getElementById('print-stock-area');
+        stockPrintArea.style.display = 'block';
+
+        const depotText = currentUser.role === 'admin' && currentDepotFilter === 'ALL' ? 'ALL DEPOTS' : currentDepotFilter;
+        document.getElementById('sp-depot').innerText = depotText || 'ALL';
+        document.getElementById('sp-date').innerText = new Date().toLocaleDateString('en-GB');
+
+        const screenTable = document.getElementById('stock-report-table');
+        const printTbody = document.getElementById('sp-table-body');
+        printTbody.innerHTML = '';
+
+        if(screenTable) {
+            const rows = screenTable.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                // শেষ কলামটি (Closing Stock) খুঁজে বের করা হচ্ছে
+                const closingCell = row.lastElementChild; 
+                
+                if (closingCell) {
+                    const closingValue = parseFloat(closingCell.innerText);
+                    
+                    // শুধুমাত্র তখনই প্রিন্টে যোগ করবে যদি ক্লোজিং ভ্যালু ০ এর বেশি হয়
+                    if (closingValue > 0) {
+                        printTbody.innerHTML += row.innerHTML.replace(/color:\s*(\w+|#\w+);?/gi, '');
+                    }
+                }
+            });
+        }
+        
+        window.print();
+    };
+
+    window.renderMgmtTables = function(fMpos, fProds, fGifts, fDas, fUsers) {
+        
+        const mpoT = document.getElementById('table-mpo');
+        mpoT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Territory</th><th>Cat(Prod)</th><th>Cat(Gift)</th><th>Status</th><th>Depot</th><th>Actions</th></tr></thead>`;
+        fMpos.forEach(m => {
+            const isMpoActive = (m.isActive !== false);
+            const statusBadge = isMpoActive 
+                ? '<span style="color:var(--success); font-weight:bold;">Active</span>' 
+                : '<span style="color:var(--danger); font-weight:bold;">Inactive</span>';
+            
+            const toggleBtnColor = isMpoActive ? 'var(--danger)' : 'var(--success)';
+            
+            mpoT.innerHTML += `
+                <tr>
+                    <td>${m.id}</td>
+                    <td>${m.name}</td>
+                    <td>${m.territory}</td>
+                    <td>${m.categoryProd || m.category || '-'}</td>
+                    <td>${m.categoryGift || '-'}</td>
+                    <td>${statusBadge}</td>
+                    <td>${m.depotId || '<span style="color:red">Missing</span>'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="window.editItem('mpo','${m.id}')"><i class="fa-solid fa-pen"></i></button> 
+                        <button class="btn btn-sm btn-danger" onclick="window.deleteItem('mpo','${m.id}')"><i class="fa-solid fa-trash"></i></button>
+                        <button class="btn btn-sm" style="background-color:${toggleBtnColor}; color:white;" onclick="window.toggleMPOStatus('${m.id}')" title="Toggle Active/Inactive"><i class="fa-solid fa-power-off"></i></button>
+                    </td>
+                </tr>`;
+        });
+
+        const prodT = document.getElementById('table-prod');
+        prodT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Pack</th><th>Status</th><th>A/B/C/D/E</th><th>Stock</th><th>Depot</th><th>Actions</th></tr></thead>`;
+        fProds.forEach(p => {
+            const statusBadge = (p.isActive === false || p.isActive === 'false') 
+                ? '<span style="color:red; font-weight:bold;">Inactive</span>' 
+                : '<span style="color:var(--success); font-weight:bold;">Active</span>';
+            
+            const toggleBtnColor = (p.isActive === false || p.isActive === 'false') ? 'var(--success)' : 'var(--danger)';
+            const toggleIcon = (p.isActive === false || p.isActive === 'false') ? 'fa-toggle-on' : 'fa-toggle-off';
+
+            // ADDED: CYAN BUTTON
+            const btnCyan = `<button class="btn btn-sm btn-cyan" onclick="window.openModal('editCategory','${p.id}')" title="Edit Category"><i class="fa-solid fa-edit"></i> Cat</button>`;
+
+            prodT.innerHTML += `
+                <tr>
+                    <td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${statusBadge}</td>
+                    <td>${p.qtyA}/${p.qtyB}/${p.qtyC}/${p.qtyD}/${p.qtyE}</td>
+                    <td style="font-weight:bold; text-align:center;">${p.receivedStock || 0}</td>
+                    <td>${p.depotId || '<span style="color:red">Missing</span>'}</td>
+                    <td>
+                        ${btnCyan}
+                        <button class="btn btn-sm btn-secondary" onclick="window.editItem('prod','${p.id}')"><i class="fa-solid fa-pen"></i></button> 
+                        <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('${p.id}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
+                        <button class="btn btn-sm btn-danger" onclick="window.deleteItem('prod','${p.id}')"><i class="fa-solid fa-trash"></i></button>
+                        <button class="btn btn-sm" style="background-color:${toggleBtnColor}; color:white;" onclick="window.toggleProductStatus('${p.id}')" title="Toggle Active/Inactive"><i class="fa-solid ${toggleIcon}"></i></button>
+                    </td>
+                </tr>`;
+        });
+
+        const giftT = document.getElementById('table-gift');
+        giftT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Pack</th><th>Status</th><th>A/B/C/D/E</th><th>Depot</th><th>Actions</th></tr></thead>`;
+        fGifts.forEach(p => {
+            const statusBadge = (p.isActive === false || p.isActive === 'false') 
+                ? '<span style="color:red; font-weight:bold;">Inactive</span>' 
+                : '<span style="color:var(--success); font-weight:bold;">Active</span>';
+
+            const toggleBtnColor = (p.isActive === false || p.isActive === 'false') ? 'var(--success)' : 'var(--danger)';
+            const toggleIcon = (p.isActive === false || p.isActive === 'false') ? 'fa-toggle-on' : 'fa-toggle-off';
+
+            giftT.innerHTML += `
+                <tr>
+                    <td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${statusBadge}</td>
+                    <td>${p.qtyA}/${p.qtyB}/${p.qtyC}/${p.qtyD}/${p.qtyE}</td>
+                    <td>${p.depotId || '<span style="color:red">Missing</span>'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" onclick="window.editItem('gift','${p.id}')"><i class="fa-solid fa-pen"></i></button> 
+                        <button class="btn btn-sm btn-danger" onclick="window.deleteItem('gift','${p.id}')"><i class="fa-solid fa-trash"></i></button>
+                        <button class="btn btn-sm" style="background-color:${toggleBtnColor}; color:white;" onclick="window.toggleGiftStatus('${p.id}')" title="Toggle Active/Inactive"><i class="fa-solid ${toggleIcon}"></i></button>
+                    </td>
+                </tr>`;
+        });
+
+        const daT = document.getElementById('table-da');
+        daT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Depot</th><th>Actions</th></tr></thead>`;
+        fDas.forEach(d => {
+            daT.innerHTML += `<tr><td>${d.id}</td><td>${d.name}</td><td>${d.phone || '-'}</td><td>${d.depotId || '<span style="color:red">Missing</span>'}</td>${createActions('da',d.id)}</tr>`;
+        });
+
+        if(document.getElementById('table-users')) {
+            const userT = document.getElementById('table-users');
+            userT.innerHTML = `<thead><tr><th>Username</th><th>Depot ID</th><th>Role</th><th>Actions</th></tr></thead>`;
+            fUsers.forEach(u => {
+                userT.innerHTML += `<tr><td>${u.username}</td><td>${u.depotId}</td><td>User</td>${createActions('user',u.key)}</tr>`;
+            });
+        }
+    };
+
+    window.toggleMPOStatus = function(id) {
+        const mpo = data.mpos.find(m => m.id === id);
+        if(!mpo) return;
+        const newStatus = !(mpo.isActive !== false);
+        update(ref(db, `mpos/${id}`), { isActive: newStatus }).then(() => showToast(`MPO marked as ${newStatus?'Active':'Inactive'}`)).catch(err => showToast("Error updating status"));
+    }
+
+    window.toggleProductStatus = function(id) {
+        const product = data.prods.find(p => p.id === id);
+        if(!product) return;
+        const newStatus = !(product.isActive === true || product.isActive === 'true');
+        update(ref(db, `prods/${id}`), { isActive: newStatus }).then(() => showToast(`Product marked as ${newStatus?'Active':'Inactive'}`)).catch(err => showToast("Error updating status"));
+    }
+
+    window.toggleGiftStatus = function(id) {
+        const gift = data.gifts.find(g => g.id === id);
+        if(!gift) return;
+        const newStatus = !(gift.isActive === true || gift.isActive === 'true');
+        update(ref(db, `gifts/${id}`), { isActive: newStatus }).then(() => showToast(`Gift marked as ${newStatus?'Active':'Inactive'}`)).catch(err => showToast("Error updating status"));
+    }
+
+    function createActions(type, id) {
+        return `<td><button class="btn btn-sm btn-secondary" onclick="window.editItem('${type}','${id}')"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="window.deleteItem('${type}','${id}')"><i class="fa-solid fa-trash"></i></button></td>`;
+    }
+
+    window.openAddStockModal = function(id) {
+        const product = data.prods.find(p => p.id === id);
+        if (!product) return;
+
+        editType = 'addStock';
+        editId = id;
+        document.getElementById('modal').style.display = 'flex';
+        document.getElementById('modal-title').innerText = `Add Stock - ${product.name}`;
+        document.getElementById('modal-form').reset();
+        
+        const container = document.getElementById('modal-fields');
+        container.innerHTML = `
+            <div class="form-group">
+                <label>Product Name</label>
+                <input type="text" value="${product.name}" readonly style="background-color: #f8f9fa; font-weight:bold;">
+            </div>
+            <div class="form-group">
+                <label>Current Stock</label>
+                <input type="number" value="${product.receivedStock || 0}" readonly style="background-color: #f8f9fa; font-weight:bold; color:var(--accent);">
+            </div>
+            <div class="form-group">
+                <label style="color:var(--warning);">Stock to Add</label>
+                <input type="number" name="stockToAdd" required placeholder="Enter quantity to add" style="border-color:var(--warning);">
+            </div>
+        `;
+    };
+
+    window.openModal = function(type, id) {
+        editType = type;
+        editId = id;
+        document.getElementById('modal').style.display = 'flex';
+        document.getElementById('modal-form').reset();
+        
+        const container = document.getElementById('modal-fields');
+        container.innerHTML = '';
+
+        const depotSelect = () => {
+            if(currentUser.role === 'admin') {
+                let html = '<div class="form-group"><label>Depot ID</label><select name="depotId" required onchange="window.updateModalDAOptions(this.value)">';
+                html += '<option value="" disabled selected>-- Select Depot --</option>';
+                Array.from(allDepots).sort().forEach(depot => {
+                    html += `<option value="${depot}">${depot}</option>`;
+                });
+                html += '</select></div>';
+                return html;
+            } else {
+                return `<input type="hidden" name="depotId" value="${currentUser.depotId}">`;
+            }
+        };
+
+        // --- EDIT CATEGORY MODE LOGIC ---
+        if (type === 'editCategory') {
+            const p = data.prods.find(x => x.id === id);
+            if (!p) return;
+            
+            document.getElementById('modal-title').innerText = `Edit Categories - ${p.name}`;
+            container.innerHTML = `
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" value="${p.name}" readonly style="background-color: #f8f9fa; font-weight:bold;">
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1">
+                        <label style="color:var(--accent)">Cat A</label>
+                        <input type="number" name="qtyA" value="${p.qtyA || 0}">
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label style="color:var(--warning)">Cat B</label>
+                        <input type="number" name="qtyB" value="${p.qtyB || 0}">
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label style="color:var(--teal)">Cat C</label>
+                        <input type="number" name="qtyC" value="${p.qtyC || 0}">
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label style="color:var(--orange)">Cat D</label>
+                        <input type="number" name="qtyD" value="${p.qtyD || 0}">
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label style="color:var(--pink)">Cat E</label>
+                        <input type="number" name="qtyE" value="${p.qtyE || 0}">
+                    </div>
+                </div>
+            `;
+            return; // Stop normal form generation
+        }
+
+        if(type === 'mpo') {
+            container.innerHTML = `
+                ${depotSelect()}
+                <div class="form-group"><label>MPO ID</label><input name="id" required></div>
+                <div class="form-group"><label>Name</label><input name="name" required></div>
+                <div class="form-group"><label>Territory</label><input name="territory"></div>
+                <div class="form-group"><label>Area</label><input name="area"></div> 
+                <div class="form-group"><label>Region</label><input name="region"></div> 
+                
+                <div style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1">
+                        <label style="color:var(--accent)">Category (Prod)</label>
+                        <select name="categoryProd"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label style="color:var(--purple)">Category (Gift)</label>
+                        <select name="categoryGift"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select>
+                    </div>
+                </div>
+
+                <div class="form-group"><label>TP Sales</label><input type="number" name="sales"></div>
+                <div class="form-group"><label>Status</label><select name="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+                <div class="form-group"><label>Assign DA</label><select name="daId" id="modal-da-select"><option value="">None</option></select></div>
+            `;
+        } else if (type === 'da') {
+            container.innerHTML = `
+                ${depotSelect()}
+                <div class="form-group"><label>DA ID</label><input name="id" required></div>
+                <div class="form-group"><label>Name</label><input name="name" required></div>
+                <div class="form-group"><label>Phone</label><input name="phone"></div>
+                <div class="form-group"><label>Vehicle No.</label><input name="vehicle"></div>
+            `;
+        } else if (type === 'prod' || type === 'gift') {
+            const statusField = (type === 'prod' || type === 'gift') ? 
+                `<div class="form-group"><label>Status</label><select name="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>` : '';
+            
+            container.innerHTML = `
+                ${depotSelect()}
+                <div class="form-group"><label>${type==='prod'?'Product':'Gift'} ID</label><input name="id" required></div>
+                <div class="form-group"><label>Name</label><input name="name" required></div>
+                <div class="form-group"><label>Pack Size</label><input name="pack" required></div>
+                <div class="form-group"><label>Unit</label><select name="unit"><option>Box</option><option>Pot</option><option>Pcs</option><option>Vial</option></select></div>
+                <div class="form-group"><label>Received Stock</label><input type="number" name="receivedStock" value="0"></div>
+                <div style="display:flex; gap:5px">
+                    <div class="form-group" style="flex:1"><label>Qty A</label><input type="number" name="qtyA" value="0"></div>
+                    <div class="form-group" style="flex:1"><label>Qty B</label><input type="number" name="qtyB" value="0"></div>
+                    <div class="form-group" style="flex:1"><label>Qty C</label><input type="number" name="qtyC" value="0"></div>
+                    <div class="form-group" style="flex:1"><label>Qty D</label><input type="number" name="qtyD" value="0"></div>
+                    <div class="form-group" style="flex:1"><label>Qty E</label><input type="number" name="qtyE" value="0"></div>
+                </div>
+                ${statusField}
+            `;
+        } else if (type === 'user') {
+            container.innerHTML = `
+                <div class="form-group"><label>Username</label><input name="username" required></div>
+                <div class="form-group"><label>Password</label><input name="password" type="password" required></div>
+                <div class="form-group"><label>Depot ID</label><input name="depotId" placeholder="e.g. KUS" required></div>
+            `;
+        }
+    };
+
+    window.updateModalDAOptions = function(selectedDepotId) {
+        const daSelect = document.getElementById('modal-da-select');
+        if (!daSelect) return;
+        
+        daSelect.innerHTML = '<option value="">None</option>';
+        
+        if (selectedDepotId && data.das) {
+            const filteredDas = data.das.filter(d => d.depotId === selectedDepotId);
+            filteredDas.forEach(d => {
+                daSelect.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+            });
+        }
+    };
+
+    window.editItem = function(type, id) {
+        let item;
+        if(type === 'user') {
+             item = data.users.find(x => x.key === id);
+             if(!item) return;
+             item.id = item.username; 
+        } else {
+            const sourceArr = type==='mpo'?data.mpos:type==='da'?data.das:type==='prod'?data.prods:data.gifts;
+            item = sourceArr.find(x => x.id === id);
+        }
+        if(!item) return;
+
+        window.openModal(type);
+        editId = item.key || id;
+        document.getElementById('modal-title').innerText = 'Edit ' + (type === 'user' ? 'User' : type.toUpperCase());
+        const form = document.getElementById('modal-form');
+        for(let key in item) {
+            if(form.elements[key]) form.elements[key].value = item[key];
+        }
+        if(type === 'mpo' && item.depotId) {
+            window.updateModalDAOptions(item.depotId);
+            form.elements['daId'].value = item.daId || '';
+        }
+    };
+
+    window.deleteItem = function(type, id) {
+        if(!confirm('Delete this record?')) return;
+        let path = '';
+        if(type === 'user') path = 'users/' + id;
+        else if(type === 'mpo') path = 'mpos/' + id;
+        else if(type === 'da') path = 'das/' + id;
+        else if(type === 'prod') path = 'prods/' + id;
+        else if(type === 'gift') path = 'gifts/' + id;
+        
+        remove(ref(db, path)).then(() => showToast("Record Deleted"));
+    };
+
+    window.saveModalData = function(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const obj = {};
+        formData.forEach((value, key) => obj[key] = value);
+
+        // --- CATEGORY EDIT SAVE LOGIC ---
+        if(editType === 'editCategory') {
+            const updateObj = {
+                qtyA: Number(form.qtyA.value),
+                qtyB: Number(form.qtyB.value),
+                qtyC: Number(form.qtyC.value),
+                qtyD: Number(form.qtyD.value),
+                qtyE: Number(form.qtyE.value)
+            };
+            update(ref(db, `prods/${editId}`), updateObj)
+                .then(() => {
+                    showToast("Categories Updated Successfully");
+                    closeModal();
+                })
+                .catch(err => showToast("Error updating categories: " + err.message));
+            return; // Stop normal save logic
+        }
+
+        // --- STOCK ADDITION LOGIC ---
+        if(editType === 'addStock') {
+            const addedStock = Number(obj.stockToAdd);
+            const product = data.prods.find(p => p.id === editId);
+            if(!product) return;
+            
+            const currentStock = Number(product.receivedStock || 0);
+            const newTotalStock = currentStock + addedStock;
+            
+            // Use update to only change receivedStock
+            update(ref(db, `prods/${editId}`), { receivedStock: newTotalStock })
+                .then(() => {
+                    showToast(`Stock Updated! New Total: ${newTotalStock}`);
+                    closeModal();
+                })
+                .catch(err => showToast("Error updating stock: " + err.message));
+            return; // Stop normal save logic
+        }
+
+        // --- NORMAL SAVE LOGIC ---
+        if(obj.sales) obj.sales = Number(obj.sales);
+        
+        if(obj.qtyA) { 
+            obj.qtyA = Number(obj.qtyA); 
+            obj.qtyB = Number(obj.qtyB); 
+            obj.qtyC = Number(obj.qtyC); 
+            obj.qtyD = Number(obj.qtyD); 
+            obj.qtyE = Number(obj.qtyE); 
+        }
+        
+        if(obj.receivedStock) obj.receivedStock = Number(obj.receivedStock);
+        
+        if(obj.isActive !== undefined) {
+            obj.isActive = obj.isActive === 'true' || obj.isActive === true;
+        }
+
+        if(editType !== 'user') {
+            if(currentUser.role === 'user' && obj.depotId !== currentUser.depotId) {
+                obj.depotId = currentUser.depotId; 
+            }
+        }
+
+        let path = '';
+        if(editType === 'user') path = 'users/' + (editId || Date.now());
+        else if(editType === 'mpo') path = 'mpos/' + (editId || obj.id);
+        else if(editType === 'da') path = `das/${(editId || obj.id)}`;
+        else if(editType === 'prod') path = 'prods/' + (editId || obj.id);
+        else if(editType === 'gift') path = 'gifts/' + (editId || obj.id);
+
+        set(ref(db, path), obj).then(() => {
+            showToast("Saved Successfully");
+            closeModal();
+        }).catch(err => showToast("Error Saving: " + err.message));
+    };
+
+    window.closeModal = function() { document.getElementById('modal').style.display = 'none'; };
+
+    let uploadType = null; 
+    let parsedExcelData = [];
+
+    window.openUploadModal = function(type) {
+        uploadType = type;
+        document.getElementById('upload-modal').style.display = 'flex';
+        document.getElementById('upload-title').innerText = `Upload ${type === 'mpo' ? 'MPOs' : 'Products/Gifts'} from Excel`;
+        document.getElementById('excel-file').value = ''; 
+        document.getElementById('upload-status').innerText = '';
+        document.getElementById('upload-preview-container').style.display = 'none';
+        document.getElementById('btn-confirm-upload').disabled = true;
+        parsedExcelData = [];
+    };
+
+    window.closeUploadModal = function() {
+        document.getElementById('upload-modal').style.display = 'none';
+    };
+
+    document.getElementById('excel-file').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if(!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            parsedExcelData = XLSX.utils.sheet_to_json(worksheet, {defval:""}); 
+
+            if(parsedExcelData.length === 0) {
+                document.getElementById('upload-status').innerText = "Error: Excel file is empty or format is incorrect.";
+                document.getElementById('upload-status').style.color = "red";
+                document.getElementById('btn-confirm-upload').disabled = true;
+                return;
+            }
+
+            renderUploadPreview(parsedExcelData);
+            document.getElementById('upload-status').innerText = `Loaded ${parsedExcelData.length} records. Review data below before confirming.`;
+            document.getElementById('upload-status').style.color = "var(--success)";
+            document.getElementById('btn-confirm-upload').disabled = false;
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    function renderUploadPreview(data) {
+        const table = document.getElementById('upload-preview-table');
+        document.getElementById('upload-preview-container').style.display = 'block';
+        table.innerHTML = '';
+        
+        const headers = Object.keys(data[0]);
+        let thead = '<thead><tr>';
+        headers.forEach(h => thead += `<th>${h}</th>`);
+        thead += '</tr></thead>';
+        table.innerHTML += thead;
+
+        let tbody = '<tbody>';
+        data.slice(0, 5).forEach((row, index) => {
+            tbody += '<tr>';
+            headers.forEach(h => {
+                tbody += `<td>${row[h]}</td>`;
+            });
+            tbody += '</tr>';
+        });
+        if(data.length > 5) {
+            tbody += `<tr><td colspan="${headers.length}" style="text-align:center; font-style:italic;">... and ${data.length - 5} more rows ...</td></tr>`;
+        }
+        tbody += '</tbody>';
+        table.innerHTML += tbody;
+    }
+
+    window.confirmExcelUpload = function() {
+        if(!uploadType || parsedExcelData.length === 0) return;
+
+        if(!confirm(`Are you sure you want to upload ${parsedExcelData.length} records? This will update existing records if IDs match.`)) return;
+
+        document.getElementById('upload-status').innerText = "Uploading... Please wait.";
+        document.getElementById('btn-confirm-upload').disabled = true;
+
+        let updates = {};
+        let count = 0;
+        const currentDepot = currentUser.depotId;
+
+        parsedExcelData.forEach((row, index) => {
+            let item = {};
+            
+            if(uploadType === 'mpo') {
+                item.id = row['ID'] || row['id'];
+                item.name = row['Name'] || row['name'];
+                item.territory = row['Territory'] || row['territory'];
+                item.area = row['Area'] || row['area'] || ''; 
+                item.region = row['Region'] || row['region'] || ''; 
+                
+                item.categoryProd = row['CategoryProd'] || row['categoryProd'] || row['Category'] || row['category'];
+                item.categoryGift = row['CategoryGift'] || row['categoryGift'];
+
+                item.sales = Number(row['TP Sales'] || row['Sales'] || row['sales'] || 0);
+                item.depotId = (row['DepotId'] || row['depotId']) || currentDepot;
+                if(row['DA'] || row['da']) item.daId = row['DA'] || row['da'];
+                
+                if(row['isActive'] !== undefined) {
+                    item.isActive = row['isActive'] === true || row['isActive'] === 'true';
+                } else {
+                    item.isActive = true; 
+                }
+
+                if(!item.id || !item.name) return; 
+                updates[`mpos/${item.id}`] = item;
+            } 
+            else if (uploadType === 'prod' || uploadType === 'gift') {
+                item.id = row['ID'] || row['id'];
+                item.name = row['Name'] || row['name'];
+                item.pack = row['Pack'] || row['pack'];
+                item.unit = row['Unit'] || row['unit'];
+                item.receivedStock = Number(row['ReceivedStock'] || row['receivedstock'] || 0);
+                item.qtyA = Number(row['QtyA'] || row['qtyA'] || 0);
+                item.qtyB = Number(row['QtyB'] || row['qtyB'] || 0);
+                item.qtyC = Number(row['QtyC'] || row['qtyC'] || 0);
+                item.qtyD = Number(row['QtyD'] || row['qtyD'] || 0);
+                item.qtyE = Number(row['QtyE'] || row['qtyE'] || 0);
+                
+                item.depotId = (row['DepotId'] || row['depotId']) || currentDepot;
+
+                if(row['isActive'] !== undefined) {
+                    item.isActive = row['isActive'] === true || row['isActive'] === 'true';
+                } else {
+                    item.isActive = true; 
+                }
+                
+                if(!item.id || !item.name) return;
+                
+                updates[`${uploadType}s/${item.id}`] = item;
+            }
+            count++;
+        });
+
+        update(ref(db), updates)
+            .then(() => {
+                showToast(`Successfully uploaded ${count} records!`);
+                window.closeUploadModal();
+            })
+            .catch((error) => {
+                showToast("Error uploading data.");
+                document.getElementById('btn-confirm-upload').disabled = false;
+                document.getElementById('upload-status').innerText = "Error occurred.";
+            });
+    };
+</script>
+
+<!-- DEVELOPER TOOLS BLOCKER -->
+<script>
+    // Disable Right Click
+    document.addEventListener('contextmenu', event => event.preventDefault());
+
+    // Disable F12 and other inspection keys
+    document.onkeydown = function(e) {
+        if(e.keyCode == 123) { // F12
+            return false;
+        }
+        if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) { // Ctrl+Shift+I
+            return false;
+        }
+        if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) { // Ctrl+Shift+J
+            return false;
+        }
+        if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) { // Ctrl+U
+            return false;
+        }
+    }
+</script>
+</body>
+</html>
