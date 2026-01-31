@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sample Managment System - Sample/Gift/PPM Info</title>
+    <title>Depot System - Sample/Gift/PPM Info</title>
     
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -394,7 +394,7 @@
         <div style="font-size: 3rem; color: var(--accent); margin-bottom: 10px;">
             <i class="fa-solid fa-boxes-stacked"></i>
         </div>
-        <h2>Sample Managment System</h2>
+        <h2>Depot System</h2>
         <p style="color:#7f8c8d; margin-bottom: 20px;">Sample/Gift/PPM Info</p>
         
         <form id="login-form">
@@ -410,7 +410,7 @@
 <header>
     <div class="logo">
         <i class="fa-solid fa-layer-group"></i> 
-        <span>Sample Managment System</span>
+        <span>Depot System</span>
     </div>
     
     <!-- DESKTOP NAV (Hidden on Mobile) -->
@@ -866,7 +866,7 @@
             <strong>Instructions:</strong><br>
             1. The first row of your Excel file must contain Headers.<br>
             2. <strong>MPO Headers:</strong> ID, Name, Territory, Area, Region, <strong>CategoryProd</strong>, <strong>CategoryGift</strong>, Sales, DepotId (Optional), isActive (Optional - true/false)<br>
-            3. <strong>Product/Gift Headers:</strong> ID, Name, Pack, Unit, QtyA, QtyB, QtyC, QtyD, QtyE, ReceivedStock, DepotId (Optional), isActive (Optional - true/false)
+            3. <strong>Product/Gift Headers:</strong> ID, Name, Pack, Unit, QtyA, QtyB, QtyC, QtyD, QtyE, ReceivedStock, DepotId (Optional). (Note: For Products, ID is your Manual ID like 'ASL').
         </div>
 
         <div class="form-group">
@@ -991,7 +991,7 @@
 <!-- FIREBASE & APPLICATION LOGIC -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-    import { getDatabase, ref, onValue, set, remove, push, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+    import { getDatabase, ref, onValue, set, remove, push, update, off } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
     // --- FIREBASE CONFIGURATION ---
     const firebaseConfig = {
@@ -1012,6 +1012,9 @@
     let currentUser = null; 
     let currentDepotFilter = 'ALL'; 
     let allDepots = new Set();
+    
+    // Store active product listeners to detach them later when switching depots
+    let productListeners = []; 
 
     let data = {
         mpos: [], das: [], prods: [], gifts: [], challans: [], users: []
@@ -1100,9 +1103,14 @@
         location.reload();
     };
 
+    // --- UPDATED DEPOT FILTER LOGIC ---
     window.changeDepotFilter = function() {
         currentDepotFilter = document.getElementById('global-depot-filter').value;
-        updateUI();
+        // DETACH OLD PRODUCT LISTENERS
+        productListeners.forEach(unsub => unsub());
+        productListeners = [];
+        // RE-ATTACH NEW LISTENERS BASED ON FILTER
+        initProductListeners();
     };
 
     function getFilteredData(rawData) {
@@ -1118,9 +1126,11 @@
         return result;
     }
 
+    // --- INITIALIZATION ---
     function initDataListeners() {
         document.getElementById('loader').style.display = 'block';
 
+        // 1. Listen to MPOs, DAs, Gifts, Challans, Users (Structure unchanged for these)
         const listen = (path, key) => {
             onValue(ref(db, path), (snapshot) => {
                 data[key] = [];
@@ -1138,10 +1148,92 @@
 
         listen('mpos', 'mpos');
         listen('das', 'das');
-        listen('prods', 'prods');
         listen('gifts', 'gifts');
         listen('challans', 'challans');
         listen('users', 'users');
+
+        // 2. PRODUCTS LOGIC: Dynamic based on Depot
+        // We call this initially and whenever depot filter changes
+        initProductListeners();
+    }
+
+    // --- NEW PRODUCT LISTENER LOGIC (DEPOT WISE + MANUAL ID SUPPORT) ---
+    function initProductListeners() {
+        // Clear current products from memory
+        data.prods = [];
+
+        if (currentUser.role === 'user') {
+            // USER: Listen to own depot products ONLY
+            // Path: depots/{depotId}/products
+            const userDepotId = currentUser.depotId;
+            const prodRef = ref(db, `depots/${userDepotId}/products`);
+            
+            const unsub = onValue(prodRef, (snapshot) => {
+                // If filter changed unexpectedly, stop
+                if(!currentUser || currentUser.role !== 'user') return;
+                
+                data.prods = [];
+                if(snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const p = childSnapshot.val();
+                        p.key = childSnapshot.key; // This will be the Manual ID (e.g., "ASL")
+                        p.id = childSnapshot.key;   // Ensure ID is set to key
+                        p.depotId = userDepotId;   // Ensure depotId is attached
+                        data.prods.push(p);
+                    });
+                }
+                updateUI();
+            });
+            productListeners.push(unsub);
+
+        } else if (currentUser.role === 'admin') {
+            // ADMIN: Logic depends on Filter
+            if (currentDepotFilter === 'ALL') {
+                // ADMIN ALL: Listen to ALL depots.
+                const depotsRef = ref(db, 'depots');
+                const unsubDepots = onValue(depotsRef, (snapshot) => {
+                    data.prods = [];
+                    if(snapshot.exists()) {
+                        // For each depot found
+                        snapshot.forEach((depotSnapshot) => {
+                            const depotId = depotSnapshot.key;
+                            const productsSnap = depotSnapshot.child('products');
+                            if(productsSnap.exists()) {
+                                productsSnap.forEach((prodSnap) => {
+                                    const p = prodSnap.val();
+                                    p.key = prodSnap.key; // Manual ID
+                                    p.id = prodSnap.key;
+                                    p.depotId = depotId;
+                                    data.prods.push(p);
+                                });
+                            }
+                        });
+                    }
+                    updateUI();
+                });
+                productListeners.push(unsubDepots);
+
+            } else {
+                // ADMIN SPECIFIC: Listen to specific depot
+                const specificDepotId = currentDepotFilter;
+                const prodRef = ref(db, `depots/${specificDepotId}/products`);
+                
+                const unsub = onValue(prodRef, (snapshot) => {
+                    data.prods = [];
+                    if(snapshot.exists()) {
+                        snapshot.forEach((childSnapshot) => {
+                            const p = childSnapshot.val();
+                            p.key = childSnapshot.key; // Manual ID
+                            p.id = childSnapshot.key;
+                            p.depotId = specificDepotId;
+                            data.prods.push(p);
+                        });
+                    }
+                    updateUI();
+                });
+                productListeners.push(unsub);
+            }
+        }
     }
 
     function updateUI() {
@@ -1149,7 +1241,7 @@
         
         const fMpos = getFilteredData(data.mpos);
         const fDas = getFilteredData(data.das);
-        const fProds = getFilteredData(data.prods);
+        const fProds = data.prods; // Products are already depot-wise filtered
         const fGifts = getFilteredData(data.gifts);
         const fChallans = getFilteredData(data.challans);
         const fUsers = currentUser.role === 'admin' ? data.users : [];
@@ -1232,7 +1324,7 @@
         });
         window.scrollTo(0, 0);
 
-        if(id === 'reports') window.renderStockReport(getFilteredData(data.prods), getFilteredData(data.gifts), getFilteredData(data.challans));
+        if(id === 'reports') window.renderStockReport(data.prods, getFilteredData(data.gifts), getFilteredData(data.challans));
         if(id === 'challans') window.renderChallans(getFilteredData(data.challans), getFilteredData(data.mpos));
     };
 
@@ -1358,7 +1450,7 @@
         const id = document.getElementById('gen-mpo').value;
         const fMpos = getFilteredData(data.mpos).filter(m => m.isActive !== false);
         const fDas = getFilteredData(data.das);
-        const fProds = getFilteredData(data.prods);
+        const fProds = data.prods; 
 
         const details = document.getElementById('mpo-details');
         const daSel = document.getElementById('gen-da');
@@ -1419,7 +1511,6 @@
                     <strong>${p.name}</strong>
                     <span>ID: ${p.id} | Pack: ${p.pack} | Unit: ${p.unit}</span>
                 </div>
-                <!-- Display Category Quantities inside the list for reference -->
                 <div style="display:flex; gap:5px; margin-left:auto; font-size:0.75rem; color:#666; background:#eee; padding:2px 5px; border-radius:3px;">
                     A:${p.qtyA} B:${p.qtyB} C:${p.qtyC} D:${p.qtyD} E:${p.qtyE}
                 </div>
@@ -1498,7 +1589,6 @@
             div.innerHTML = `
                 <input type="checkbox" class="gift-cb" value="${p.id}" onchange="window.toggleGift('${p.id}')">
                 <div class="product-list-info"><strong>${p.name}</strong><span>ID: ${p.id} | Pack: ${p.pack}</span></div>
-                 <!-- Display Category Quantities inside the list for reference -->
                 <div style="display:flex; gap:5px; margin-left:auto; font-size:0.75rem; color:#666; background:#eee; padding:2px 5px; border-radius:3px;">
                     A:${p.qtyA} B:${p.qtyB} C:${p.qtyC} D:${p.qtyD} E:${p.qtyE}
                 </div>
@@ -1556,8 +1646,7 @@
         const fMpos = getFilteredData(data.mpos).filter(m => m.isActive !== false);
         const fDas = getFilteredData(data.das);
         
-        // Get data based on type selector
-        const sourceData = (type === 'gift') ? getFilteredData(data.gifts) : getFilteredData(data.prods);
+        const sourceData = (type === 'gift') ? getFilteredData(data.gifts) : data.prods;
 
         const details = document.getElementById('manual-mpo-details');
         const daSel = document.getElementById('manual-da');
@@ -1593,14 +1682,12 @@
         listContainer.innerHTML = '';
         manualSelections = {};
         
-        // UPDATE TITLE BASED ON TYPE
         if(type === 'gift') {
             listTitle.innerText = "All Gifts & Quantities";
         } else {
             listTitle.innerText = "All Products & Quantities";
         }
 
-        // LOOP THROUGH ALL ACTIVE ITEMS (NO QUOTA FILTERING)
         sourceData.forEach(p => {
             if (p.isActive === false || p.isActive === 'false') return;
 
@@ -1611,7 +1698,6 @@
                     <strong>${p.name}</strong>
                     <span>ID: ${p.id} | Pack: ${p.pack} | Unit: ${p.unit || '-'}</span>
                 </div>
-                <!-- Show quotas as reference but allow manual override -->
                 <div style="display:flex; gap:2px; margin-left:auto; font-size:0.7rem; color:#888; background:#eee; padding:2px 4px; border-radius:3px; align-self:center;">
                     A:${p.qtyA} B:${p.qtyB} C:${p.qtyC}
                 </div>
@@ -1641,7 +1727,7 @@
         if(!currentMPO || Object.keys(manualSelections).length === 0) return;
 
         const type = document.getElementById('manual-type-selector').value; // 'prod' or 'gift'
-        const fItems = (type === 'gift') ? getFilteredData(data.gifts) : getFilteredData(data.prods);
+        const fItems = (type === 'gift') ? getFilteredData(data.gifts) : data.prods;
         
         const itemsArray = [];
         
@@ -1716,7 +1802,7 @@
 
     window.generateChallan = function(type) {
         let itemsArray = [];
-        let fProds = getFilteredData(data.prods);
+        let fProds = data.prods; // Already depot-filtered
         let fGifts = getFilteredData(data.gifts);
 
         if(type === 'prod') {
@@ -2095,11 +2181,10 @@
 
     // --- NEW EXPORT STOCK TO EXCEL FUNCTION ---
     window.exportStockToExcel = function() {
-        const fProds = getFilteredData(data.prods);
+        const fProds = data.prods; 
         const fGifts = getFilteredData(data.gifts);
         const fChallans = getFilteredData(data.challans);
 
-        // Calculate Usage
         let realUsage = {};
         fChallans.forEach(c => {
             if(c.items) {
@@ -2110,7 +2195,6 @@
             }
         });
 
-        // Prepare Data for Excel
         const exportData = [];
         const allItems = [...fProds, ...fGifts];
 
@@ -2132,12 +2216,10 @@
             });
         });
 
-        // Create Worksheet and Workbook
         const ws = XLSX.utils.json_to_sheet(exportData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Stock Report");
 
-        // Generate filename with date
         const dateStr = new Date().toISOString().slice(0,10);
         XLSX.writeFile(wb, `Stock_Report_${dateStr}.xlsx`);
         
@@ -2177,7 +2259,7 @@
 
     window.renderMgmtTables = function(fMpos, fProds, fGifts, fDas, fUsers) {
         if (!fMpos) fMpos = getFilteredData(data.mpos);
-        if (!fProds) fProds = getFilteredData(data.prods);
+        if (!fProds) fProds = data.prods; 
         if (!fGifts) fGifts = getFilteredData(data.gifts);
         if (!fDas) fDas = getFilteredData(data.das);
         if (!fUsers) fUsers = currentUser.role === 'admin' ? data.users : [];
@@ -2348,8 +2430,11 @@
     window.toggleProductStatus = function(id) {
         const product = data.prods.find(p => p.id === id);
         if(!product) return;
+        const depotId = product.depotId;
+        if(!depotId) return showToast("Error: Product has no Depot ID");
+
         const newStatus = !(product.isActive === true || product.isActive === 'true');
-        update(ref(db, `prods/${id}`), { isActive: newStatus }).then(() => showToast(`Product marked as ${newStatus?'Active':'Inactive'}`)).catch(err => showToast("Error updating status"));
+        update(ref(db, `depots/${depotId}/products/${id}`), { isActive: newStatus }).then(() => showToast(`Product marked as ${newStatus?'Active':'Inactive'}`)).catch(err => showToast("Error updating status"));
     }
 
     window.toggleGiftStatus = function(id) {
@@ -2373,8 +2458,11 @@
         document.getElementById('modal-title').innerText = `Add Stock - ${product.name}`;
         document.getElementById('modal-form').reset();
         
+        const origDepotId = product.depotId;
+        
         const container = document.getElementById('modal-fields');
         container.innerHTML = `
+            <input type="hidden" name="origDepotId" value="${origDepotId}">
             <div class="form-group">
                 <label>Product Name</label>
                 <input type="text" value="${product.name}" readonly style="background-color: #f8f9fa; font-weight:bold;">
@@ -2418,7 +2506,10 @@
             if (!p) return;
             
             document.getElementById('modal-title').innerText = `Edit Categories - ${p.name}`;
+            const hiddenDepot = `<input type="hidden" name="depotId" value="${p.depotId}">`;
+            
             container.innerHTML = `
+                ${hiddenDepot}
                 <div class="form-group">
                     <label>Product Name</label>
                     <input type="text" value="${p.name}" readonly style="background-color: #f8f9fa; font-weight:bold;">
@@ -2482,12 +2573,17 @@
                 <div class="form-group"><label>Vehicle No.</label><input name="vehicle"></div>
             `;
         } else if (type === 'prod' || type === 'gift') {
-            const statusField = (type === 'prod' || type === 'gift') ? 
-                `<div class="form-group"><label>Status</label><select name="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>` : '';
+            const statusField = `<div class="form-group"><label>Status</label><select name="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>`;
             
+            // --- CHANGE: Show Manual ID Input for Products (Editable on Add, Read Only on Edit) ---
+            const isEdit = (editId !== null && editId !== '');
+            const idInputState = isEdit ? 'readonly' : 'required';
+            const idInputStyle = isEdit ? 'background-color: #f8f9fa; font-weight:bold;' : '';
+            const idField = `<div class="form-group"><label>Product ID (e.g. ASL, NAPA)</label><input type="text" name="id" ${idInputState} style="${idInputStyle}" placeholder="Enter Unique ID"></div>`;
+
             container.innerHTML = `
                 ${depotSelect()}
-                <div class="form-group"><label>${type==='prod'?'Product':'Gift'} ID</label><input name="id" required></div>
+                ${idField}
                 <div class="form-group"><label>Name</label><input name="name" required></div>
                 <div class="form-group"><label>Pack Size</label><input name="pack" required></div>
                 <div class="form-group"><label>Unit</label><select name="unit"><option>Box</option><option>Pot</option><option>Pcs</option><option>Vial</option></select></div>
@@ -2547,20 +2643,29 @@
             window.updateModalDAOptions(item.depotId);
             form.elements['daId'].value = item.daId || '';
         }
+        if(type === 'prod' && item.depotId) {
+            form.elements['depotId'].value = item.depotId;
+        }
     };
 
     window.deleteItem = function(type, id) {
         if(!confirm('Delete this record?')) return;
         let path = '';
+        
         if(type === 'user') path = 'users/' + id;
         else if(type === 'mpo') path = 'mpos/' + id;
         else if(type === 'da') path = 'das/' + id;
-        else if(type === 'prod') path = 'prods/' + id;
+        else if(type === 'prod') {
+            const prod = data.prods.find(p => p.id === id);
+            if(!prod || !prod.depotId) return showToast("Error: Cannot find product path");
+            path = `depots/${prod.depotId}/products/${id}`;
+        }
         else if(type === 'gift') path = 'gifts/' + id;
         
         remove(ref(db, path)).then(() => showToast("Record Deleted"));
     };
 
+    // --- UPDATED SAVE MODAL DATA (SUPPORTS MANUAL ID & DEPOT) ---
     window.saveModalData = function(e) {
         e.preventDefault();
         const form = e.target;
@@ -2568,7 +2673,11 @@
         const obj = {};
         formData.forEach((value, key) => obj[key] = value);
 
+        // 1. EDIT CATEGORY LOGIC
         if(editType === 'editCategory') {
+            const depotId = obj.depotId;
+            if(!depotId) return showToast("Depot ID missing");
+            
             const updateObj = {
                 qtyA: Number(form.qtyA.value),
                 qtyB: Number(form.qtyB.value),
@@ -2576,7 +2685,7 @@
                 qtyD: Number(form.qtyD.value),
                 qtyE: Number(form.qtyE.value)
             };
-            update(ref(db, `prods/${editId}`), updateObj)
+            update(ref(db, `depots/${depotId}/products/${editId}`), updateObj)
                 .then(() => {
                     showToast("Categories Updated Successfully");
                     closeModal();
@@ -2585,6 +2694,7 @@
             return; 
         }
 
+        // 2. ADD STOCK LOGIC
         if(editType === 'addStock') {
             const addedStock = Number(obj.stockToAdd);
             const product = data.prods.find(p => p.id === editId);
@@ -2592,8 +2702,9 @@
             
             const currentStock = Number(product.receivedStock || 0);
             const newTotalStock = currentStock + addedStock;
+            const depotId = obj.origDepotId || product.depotId;
             
-            update(ref(db, `prods/${editId}`), { receivedStock: newTotalStock })
+            update(ref(db, `depots/${depotId}/products/${editId}`), { receivedStock: newTotalStock })
                 .then(() => {
                     showToast(`Stock Updated! New Total: ${newTotalStock}`);
                     closeModal();
@@ -2602,6 +2713,34 @@
             return; 
         }
 
+        // 3. PRODUCT SAVE LOGIC (MANUAL ID)
+        if(editType === 'prod') {
+            const depotId = obj.depotId;
+            const customId = obj.id ? String(obj.id).trim() : null; // Get manual ID (e.g., "ASL")
+            
+            if(!depotId) return showToast("Depot ID is required for products");
+            if(!customId) return showToast("Product ID is required");
+            
+            if (!editId) {
+                // NEW PRODUCT: Use SET with Custom ID
+                obj.id = customId;
+                set(ref(db, `depots/${depotId}/products/${customId}`), obj).then(() => {
+                    showToast("Product Added Successfully");
+                    closeModal();
+                }).catch(err => showToast("Error Saving: " + err.message));
+            } else {
+                // EDIT PRODUCT
+                // Update data but keep Key (ID) same
+                obj.id = editId; 
+                update(ref(db, `depots/${depotId}/products/${editId}`), obj).then(() => {
+                    showToast("Product Updated Successfully");
+                    closeModal();
+                }).catch(err => showToast("Error Saving: " + err.message));
+            }
+            return;
+        }
+
+        // 4. OTHER TYPES (MPO, DA, GIFT, USER)
         if(obj.sales) obj.sales = Number(obj.sales);
         
         if(obj.qtyA) { 
@@ -2628,7 +2767,6 @@
         if(editType === 'user') path = 'users/' + (editId || Date.now());
         else if(editType === 'mpo') path = 'mpos/' + (editId || obj.id);
         else if(editType === 'da') path = `das/${(editId || obj.id)}`;
-        else if(editType === 'prod') path = 'prods/' + (editId || obj.id);
         else if(editType === 'gift') path = 'gifts/' + (editId || obj.id);
 
         set(ref(db, path), obj).then(() => {
@@ -2712,6 +2850,7 @@
         table.innerHTML += tbody;
     }
 
+    // --- UPDATED EXCEL UPLOAD (SUPPORTS MANUAL ID & DEPOT) ---
     window.confirmExcelUpload = function() {
         if(!uploadType || parsedExcelData.length === 0) return;
 
@@ -2720,73 +2859,96 @@
         document.getElementById('upload-status').innerText = "Uploading... Please wait.";
         document.getElementById('btn-confirm-upload').disabled = true;
 
-        let updates = {};
-        let count = 0;
         const currentDepot = currentUser.depotId;
+        
+        const processUpload = async () => {
+            try {
+                if(uploadType === 'prod') {
+                    let count = 0;
+                    for (const row of parsedExcelData) {
+                        const id = row['ID'] || row['id'];
+                        if(!id) continue;
+                        
+                        const item = {
+                            name: row['Name'] || row['name'],
+                            pack: row['Pack'] || row['pack'],
+                            unit: row['Unit'] || row['unit'],
+                            receivedStock: Number(row['ReceivedStock'] || row['receivedstock'] || 0),
+                            qtyA: Number(row['QtyA'] || row['qtyA'] || 0),
+                            qtyB: Number(row['QtyB'] || row['qtyB'] || 0),
+                            qtyC: Number(row['QtyC'] || row['qtyC'] || 0),
+                            qtyD: Number(row['QtyD'] || row['qtyD'] || 0),
+                            qtyE: Number(row['QtyE'] || row['qtyE'] || 0),
+                            depotId: (row['DepotId'] || row['depotId']) || currentDepot,
+                            isActive: row['isActive'] !== undefined ? (row['isActive'] === true || row['isActive'] === 'true') : true,
+                            id: id // Manual ID from Excel
+                        };
 
-        parsedExcelData.forEach((row, index) => {
-            let item = {};
-            
-            if(uploadType === 'mpo') {
-                item.id = row['ID'] || row['id'];
-                item.name = row['Name'] || row['name'];
-                item.territory = row['Territory'] || row['territory'];
-                item.area = row['Area'] || row['area'] || ''; 
-                item.region = row['Region'] || row['region'] || ''; 
-                
-                item.categoryProd = row['CategoryProd'] || row['categoryProd'] || row['Category'] || row['category'];
-                item.categoryGift = row['CategoryGift'] || row['categoryGift'];
+                        // Use SET with Manual ID
+                        await set(ref(db, `depots/${item.depotId}/products/${id}`), item);
+                        count++;
+                    }
+                    showToast(`Successfully uploaded ${count} products!`);
+                } else if (uploadType === 'mpo') {
+                    let count = 0;
+                    for (const row of parsedExcelData) {
+                        const id = row['ID'] || row['id'];
+                        if(!id) continue;
 
-                item.sales = Number(row['TP Sales'] || row['Sales'] || row['sales'] || 0);
-                item.depotId = (row['DepotId'] || row['depotId']) || currentDepot;
-                if(row['DA'] || row['da']) item.daId = row['DA'] || row['da'];
-                
-                if(row['isActive'] !== undefined) {
-                    item.isActive = row['isActive'] === true || row['isActive'] === 'true';
-                } else {
-                    item.isActive = true; 
+                        const item = {
+                            id: id,
+                            name: row['Name'] || row['name'],
+                            territory: row['Territory'] || row['territory'],
+                            area: row['Area'] || row['area'] || '', 
+                            region: row['Region'] || row['region'] || '', 
+                            categoryProd: row['CategoryProd'] || row['categoryProd'] || row['Category'] || row['category'],
+                            categoryGift: row['CategoryGift'] || row['categoryGift'],
+                            sales: Number(row['TP Sales'] || row['Sales'] || row['sales'] || 0),
+                            depotId: (row['DepotId'] || row['depotId']) || currentDepot,
+                            daId: row['DA'] || row['da'],
+                            isActive: row['isActive'] !== undefined ? (row['isActive'] === true || row['isActive'] === 'true') : true
+                        };
+
+                        await set(ref(db, `mpos/${id}`), item);
+                        count++;
+                    }
+                    showToast(`Successfully uploaded ${count} MPOs!`);
+                } else if (uploadType === 'gift') {
+                    let count = 0;
+                    for (const row of parsedExcelData) {
+                        const id = row['ID'] || row['id'];
+                        if(!id) continue;
+
+                        const item = {
+                            id: id,
+                            name: row['Name'] || row['name'],
+                            pack: row['Pack'] || row['pack'],
+                            unit: row['Unit'] || row['unit'],
+                            receivedStock: Number(row['ReceivedStock'] || row['receivedstock'] || 0),
+                            qtyA: Number(row['QtyA'] || row['qtyA'] || 0),
+                            qtyB: Number(row['QtyB'] || row['qtyB'] || 0),
+                            qtyC: Number(row['QtyC'] || row['qtyC'] || 0),
+                            qtyD: Number(row['QtyD'] || row['qtyD'] || 0),
+                            qtyE: Number(row['QtyE'] || row['qtyE'] || 0),
+                            depotId: (row['DepotId'] || row['depotId']) || currentDepot,
+                            isActive: row['isActive'] !== undefined ? (row['isActive'] === true || row['isActive'] === 'true') : true
+                        };
+                        
+                        await set(ref(db, `gifts/${id}`), item);
+                        count++;
+                    }
+                    showToast(`Successfully uploaded ${count} Gifts!`);
                 }
-
-                if(!item.id || !item.name) return; 
-                updates[`mpos/${item.id}`] = item;
-            } 
-            else if (uploadType === 'prod' || uploadType === 'gift') {
-                item.id = row['ID'] || row['id'];
-                item.name = row['Name'] || row['name'];
-                item.pack = row['Pack'] || row['pack'];
-                item.unit = row['Unit'] || row['unit'];
-                item.receivedStock = Number(row['ReceivedStock'] || row['receivedstock'] || 0);
-                item.qtyA = Number(row['QtyA'] || row['qtyA'] || 0);
-                item.qtyB = Number(row['QtyB'] || row['qtyB'] || 0);
-                item.qtyC = Number(row['QtyC'] || row['qtyC'] || 0);
-                item.qtyD = Number(row['QtyD'] || row['qtyD'] || 0);
-                item.qtyE = Number(row['QtyE'] || row['qtyE'] || 0);
-                
-                item.depotId = (row['DepotId'] || row['depotId']) || currentDepot;
-
-                if(row['isActive'] !== undefined) {
-                    item.isActive = row['isActive'] === true || row['isActive'] === 'true';
-                } else {
-                    item.isActive = true; 
-                }
-                
-                if(!item.id || !item.name) return;
-                
-                updates[`${uploadType}s/${item.id}`] = item;
-            }
-            count++;
-        });
-
-        update(ref(db), updates)
-            .then(() => {
-                showToast(`Successfully uploaded ${count} records!`);
                 window.closeUploadModal();
-            })
-            .catch((error) => {
+            } catch (error) {
+                console.error(error);
                 showToast("Error uploading data.");
                 document.getElementById('btn-confirm-upload').disabled = false;
                 document.getElementById('upload-status').innerText = "Error occurred.";
-            });
+            }
+        };
+
+        processUpload();
     };
 </script>
 
