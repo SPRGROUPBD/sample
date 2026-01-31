@@ -740,7 +740,13 @@
     <section id="reports" class="section">
         <h2><i class="fa-solid fa-warehouse"></i> Stock Report</h2>
         <div class="panel">
-            <div class="panel-header"><h3>Current Inventory Status</h3> <button class="btn btn-secondary" onclick="window.printStockReport()"><i class="fa-solid fa-print"></i> Print Report</button></div>
+            <div class="panel-header">
+                <h3>Current Inventory Status</h3> 
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-success" onclick="window.exportStockToExcel()"><i class="fa-solid fa-file-excel"></i> Export Excel</button>
+                    <button class="btn btn-secondary" onclick="window.printStockReport()"><i class="fa-solid fa-print"></i> Print Report</button>
+                </div>
+            </div>
             <div class="table-responsive"><table id="stock-report-table"></table></div>
         </div>
     </section>
@@ -1993,6 +1999,57 @@
 
             table.innerHTML += `<tr><td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${p.unit}</td><td>${received}</td><td>${used}</td><td style="font-weight:bold; color:${closing < 0 ? 'red' : 'green'}">${closing}</td></tr>`;
         });
+    };
+
+    // --- NEW EXPORT STOCK TO EXCEL FUNCTION ---
+    window.exportStockToExcel = function() {
+        const fProds = getFilteredData(data.prods);
+        const fGifts = getFilteredData(data.gifts);
+        const fChallans = getFilteredData(data.challans);
+
+        // Calculate Usage
+        let realUsage = {};
+        fChallans.forEach(c => {
+            if(c.items) {
+                c.items.forEach(item => {
+                    if(realUsage[item.id]) realUsage[item.id] += parseInt(item.issueQty || 0);
+                    else realUsage[item.id] = parseInt(item.issueQty || 0);
+                });
+            }
+        });
+
+        // Prepare Data for Excel
+        const exportData = [];
+        const allItems = [...fProds, ...fGifts];
+
+        allItems.forEach(p => {
+            const received = Number(p.receivedStock || 0);
+            const used = realUsage[p.id] || 0;
+            const closing = received - used;
+            const type = fProds.includes(p) ? 'Product' : 'Gift';
+
+            exportData.push({
+                "ID": p.id,
+                "Name": p.name,
+                "Type": type,
+                "Pack": p.pack,
+                "Unit": p.unit,
+                "Received": received,
+                "Used": used,
+                "Closing": closing
+            });
+        });
+
+        // Create Worksheet and Workbook
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Stock Report");
+
+        // Generate filename with date
+        const dateStr = new Date().toISOString().slice(0,10);
+        XLSX.writeFile(wb, `Stock_Report_${dateStr}.xlsx`);
+        
+        showToast("Stock Report Exported to Excel");
     };
 
     window.printStockReport = function() {
