@@ -923,6 +923,7 @@
             <button class="btn btn-secondary" id="btn-mgmt-users" style="background-color: var(--danger); color: white; display:none;" onclick="window.showMgmt('users')"><i class="fa-solid fa-users-cog"></i> Users & Permissions</button>
         </div>
 
+        <!-- MPO MANAGEMENT -->
         <div id="mgmt-mpo" class="panel">
             <div class="panel-header">
                 <h3>MPO List</h3>
@@ -943,7 +944,7 @@
             <div class="table-responsive"><table id="table-mpo"></table></div>
         </div>
         
-        <!-- MODIFIED PRODUCT MANAGEMENT -->
+        <!-- PRODUCT MANAGEMENT -->
         <div id="mgmt-prod" class="panel" style="display:none">
             <div class="panel-header">
                 <h3>Product List</h3>
@@ -956,7 +957,7 @@
             <div class="table-responsive"><table id="table-prod"></table></div>
         </div>
 
-        <!-- MODIFIED GIFT MANAGEMENT -->
+        <!-- GIFT MANAGEMENT -->
         <div id="mgmt-gift" class="panel" style="display:none">
             <div class="panel-header">
                 <h3>Gift List</h3>
@@ -969,6 +970,7 @@
             <div class="table-responsive"><table id="table-gift"></table></div>
         </div>
 
+        <!-- DA MANAGEMENT -->
         <div id="mgmt-da" class="panel" style="display:none">
             <div class="panel-header">
                 <h3>Transport (DA) List</h3>
@@ -1278,14 +1280,14 @@
     // --- FIREBASE CONFIGURATION ---
     const firebaseConfig = {
         apiKey: "AIzaSyD3DBNkMcvm9RF1QNd6g37mn-todxR4THQ",
-  authDomain: "mplfpdc.firebaseapp.com",
-  databaseURL: "https://mplfpdc-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "mplfpdc",
-  storageBucket: "mplfpdc.firebasestorage.app",
-  messagingSenderId: "1004917483554",
-  appId: "1:1004917483554:web:91ee71365c64869e07027b",
-  measurementId: "G-S3JLB16V13"
-};
+        authDomain: "mplfpdc.firebaseapp.com",
+        databaseURL: "https://mplfpdc-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "mplfpdc",
+        storageBucket: "mplfpdc.firebasestorage.app",
+        messagingSenderId: "1004917483554",
+        appId: "1:1004917483554:web:91ee71365c64869e07027b",
+        measurementId: "G-S3JLB16V13"
+    };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
@@ -1721,6 +1723,8 @@
             allowDeleteUser: allowUser
         }).then(() => {
             showToast("Permissions Updated");
+            // Re-render tables immediately to show/hide delete buttons
+            window.renderMgmtTables(); 
         }).catch(err => showToast("Error updating permissions"));
     };
 
@@ -2905,13 +2909,20 @@
             </button>`;
 
             let editBtn = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('mpo','${m.id}')"><i class="fa-solid fa-pen"></i></button>`;
+            let deleteBtn = '';
+            if (canDelete) {
+                deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('mpo','${m.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
+            }
+
+            // Category Edit Button
+            const catEditBtn = `<button class="btn btn-sm btn-cyan" onclick="window.openModal('editCategory','${m.id}')" title="Edit Categories"><i class="fa-solid fa-layer-group"></i></button>`;
             
             mpoT.innerHTML += `
                 <tr>
                     <td>${m.id}</td><td>${m.name}</td><td>${m.territory}</td><td>${m.area || '-'}</td>
                     <td>${m.sales || 0}</td><td>${m.categoryProd || m.category || '-'}</td><td>${m.categoryGift || '-'}</td>
                     <td>${statusBadge}</td><td>${m.depotId || '<span style="color:red">Missing</span>'}</td>
-                    <td>${toggleBtn} ${editBtn}</td>
+                    <td>${catEditBtn} ${editBtn} ${deleteBtn} ${toggleBtn}</td>
                 </tr>`;
         });
 
@@ -2951,13 +2962,18 @@
                 <button class="btn btn-sm btn-cyan" onclick="window.openModal('editCategory','${p.id}')" title="Edit Category"><i class="fa-solid fa-layer-group"></i></button>
                 <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('prod','${p.id}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
                 <button class="btn btn-sm btn-secondary" onclick="window.editItem('prod','${p.id}')"><i class="fa-solid fa-pen"></i></button>`;
+            
+            let deleteBtn = '';
+            if (canDelete) {
+                deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('prod','${p.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
+            }
 
             prodT.innerHTML += `
                 <tr>
                     <td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${statusBadge}</td>
                     <td>${p.qtyA}/${p.qtyB}/${p.qtyC}/${p.qtyD}/${p.qtyE}</td>
                     <td>${p.depotId || '<span style="color:red">Missing</span>'}</td>
-                    <td>${toggleBtn} ${actionBtns}</td>
+                    <td>${toggleBtn} ${actionBtns} ${deleteBtn}</td>
                 </tr>`;
         });
 
@@ -2982,13 +2998,18 @@
                 <button class="btn btn-sm btn-purple" onclick="window.openModal('editGiftCategory','${p.id}')" title="Edit Category"><i class="fa-solid fa-layer-group"></i></button>
                 <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('gift','${p.id}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
                 <button class="btn btn-sm btn-secondary" onclick="window.editItem('gift','${p.id}')"><i class="fa-solid fa-pen"></i></button>`;
+            
+            let deleteBtn = '';
+            if (canDelete) {
+                deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('gift','${p.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
+            }
 
             giftT.innerHTML += `
                 <tr>
                     <td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${statusBadge}</td>
                     <td>${p.qtyA}/${p.qtyB}/${p.qtyC}/${p.qtyD}/${p.qtyE}</td>
                     <td>${p.depotId || '<span style="color:red">Missing</span>'}</td>
-                    <td>${toggleBtn} ${actionBtns}</td>
+                    <td>${toggleBtn} ${actionBtns} ${deleteBtn}</td>
                 </tr>`;
         });
 
@@ -3003,8 +3024,13 @@
             
             let editBtn = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('da','${d.id}')"><i class="fa-solid fa-pen"></i></button>`;
             
+            let deleteBtn = '';
+            if (canDelete) {
+                deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('da','${d.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
+            }
+            
             daT.innerHTML += `<tr><td>${d.id}</td><td>${d.name}</td><td>${d.phone || '-'}</td><td>${d.depotId || '<span style="color:red">Missing</span>'}</td>
-            <td>${statusBadge}</td><td>${toggleBtn} ${editBtn}</td></tr>`;
+            <td>${statusBadge}</td><td>${editBtn} ${deleteBtn} ${toggleBtn}</td></tr>`;
         });
 
         // Render Users Table
@@ -3131,6 +3157,23 @@
             `;
             return; 
         }
+        
+        // MPO Category Edit Modal
+        if (type === 'editMpoCategory') {
+             const m = data.mpos.find(x => x.id === id);
+             if (!m) return;
+             document.getElementById('modal-title').innerText = `Edit Categories - ${m.name}`;
+             container.innerHTML = `
+                <input type="hidden" name="id" value="${m.id}">
+                <div class="form-group"><label>MPO Name</label><input type="text" value="${m.name}" readonly style="background-color: #f8f9fa; font-weight:bold;"></div>
+                <div style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1"><label style="color:var(--accent)">Category (Prod)</label><select name="categoryProd"><option value="A" ${m.categoryProd==='A'?'selected':''}>A</option><option value="B" ${m.categoryProd==='B'?'selected':''}>B</option><option value="C" ${m.categoryProd==='C'?'selected':''}>C</option><option value="D" ${m.categoryProd==='D'?'selected':''}>D</option><option value="E" ${m.categoryProd==='E'?'selected':''}>E</option></select></div>
+                    <div class="form-group" style="flex:1"><label style="color:var(--purple)">Category (Gift)</label><select name="categoryGift"><option value="A" ${m.categoryGift==='A'?'selected':''}>A</option><option value="B" ${m.categoryGift==='B'?'selected':''}>B</option><option value="C" ${m.categoryGift==='C'?'selected':''}>C</option><option value="D" ${m.categoryGift==='D'?'selected':''}>D</option><option value="E" ${m.categoryGift==='E'?'selected':''}>E</option></select></div>
+                </div>
+             `;
+             editType = 'saveMpoCategories';
+             return;
+        }
 
         if(type === 'mpo') {
             container.innerHTML = `
@@ -3148,7 +3191,9 @@
                 <div class="form-group"><label>Assign DA</label><select name="daId" id="modal-da-select"><option value="">None</option></select></div>
             `;
         } else if (type === 'da') {
-            container.innerHTML = `${depotSelect()}<div class="form-group"><label>DA ID</label><input name="id" required></div><div class="form-group"><label>Name</label><input name="name" required></div><div class="form-group"><label>Phone</label><input name="phone"></div><div class="form-group"><label>Vehicle No.</label><input name="vehicle"></div>`;
+            container.innerHTML = `${depotSelect()}<div class="form-group"><label>DA ID</label><input name="id" " required></div>
+<div class="form-group"><label>Phone</label><input name="phone"></div>
+<div class="form-group"><label>Vehicle No.</label><input name="vehicle"></div>`;
         } else if (type === 'prod' || type === 'gift') {
             const idField = `<div class="form-group"><label>Unique ID</label><input name="id" required placeholder="e.g. ASL, G01"></div>`;
             container.innerHTML = `
@@ -3238,11 +3283,33 @@
         formData.forEach((value, key) => obj[key] = value);
 
         // Handle Category Updates
-        if(editType === 'editCategory' || editType === 'editGiftCategory') {
+        if(editType === 'editCategory' || editType === 'editGiftCategory' || editType === 'editMpoCategory') {
             const depotId = obj.depotId;
-            if(!depotId) return showToast("Depot ID missing");
-            const updateObj = { qtyA: Number(form.qtyA.value), qtyB: Number(form.qtyB.value), qtyC: Number(form.qtyC.value), qtyD: Number(form.qtyD.value), qtyE: Number(form.qtyE.value) };
-            const path = editType === 'editCategory' ? `depots/${depotId}/products/${editId}` : `depots/${depotId}/gifts/${editId}`;
+            if(!depotId && editType === 'editMpoCategory') {
+                // MPO doesn't have depotId in the modal form hidden field in this case, 
+                // but it is passed in 'id' which is the MPO ID, and we have it in data.
+                // For MPO, we update 'mpos/{id}'
+            } else if (!depotId && (editType === 'editCategory' || editType === 'editGiftCategory')) {
+                 return showToast("Depot ID missing");
+            }
+
+            const updateObj = {};
+            if(editType === 'editCategory' || editType === 'editGiftCategory') {
+                updateObj.qtyA = Number(form.qtyA.value);
+                updateObj.qtyB = Number(form.qtyB.value);
+                updateObj.qtyC = Number(form.qtyC.value);
+                updateObj.qtyD = Number(form.qtyD.value);
+                updateObj.qtyE = Number(form.qtyE.value);
+            } else if (editType === 'editMpoCategory') {
+                updateObj.categoryProd = form.categoryProd.value;
+                updateObj.categoryGift = form.categoryGift.value;
+            }
+
+            let path = '';
+            if(editType === 'editCategory') path = `depots/${depotId}/products/${editId}`;
+            else if(editType === 'editGiftCategory') path = `depots/${depotId}/gifts/${editId}`;
+            else if(editType === 'editMpoCategory') path = `mpos/${editId}`;
+
             update(ref(db, path), updateObj).then(() => { showToast("Categories Updated"); closeModal(); }).catch(err => showToast("Error: " + err.message));
             return; 
         }
