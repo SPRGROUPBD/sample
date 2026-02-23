@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sample Management System v3.2 </title>
+    <title>Sample Management System v2.0</title>
     
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -438,6 +438,36 @@
                 font-size: 11pt;
             }
         }
+        
+        /* Permission Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+        .switch input {opacity: 0; width: 0; height: 0;}
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 26px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(22px); }
     </style>
 </head>
 <body>
@@ -449,7 +479,7 @@
             <i class="fa-solid fa-boxes-stacked"></i>
         </div>
         <h2>Sample Managment System</h2>
-        <p style="color:#7f8c8d; margin-bottom: 20px;">v3.2 </p>
+        <p style="color:#7f8c8d; margin-bottom: 20px;">v2.0 | Role Based Access</p>
         
         <form id="login-form">
             <input type="text" name="username" class="login-input" placeholder="Username / ID" required autocomplete="off">
@@ -480,6 +510,7 @@
         <button onclick="window.nav('reports')"><i class="fa-solid fa-warehouse"></i> Stock</button>
     </nav>
 
+    <!-- MOBILE HAMBURGER BUTTON -->
     <button id="mobile-menu-btn" onclick="window.toggleMobileMenu()">
         <i class="fa-solid fa-bars"></i>
     </button>
@@ -829,6 +860,12 @@
                         <input type="date" id="filter-date" style="width: 140px; padding: 5px; font-size: 0.9rem; border: 1px solid var(--border); border-radius: 4px;" onchange="window.renderChallans()">
                     </div>
                     <div style="display:flex; align-items:center; gap:5px;">
+                        <label style="margin:0; font-size:0.85rem; color:#7f8c8d;">Depot:</label>
+                        <select id="filter-depot" style="width: 120px; font-size: 0.9rem;" onchange="window.renderChallans()">
+                            <option value="">All Depots</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:5px;">
                         <label style="margin:0; font-size:0.85rem; color:#7f8c8d;">Type:</label>
                         <select id="filter-type" style="width: 120px; font-size: 0.9rem;" onchange="window.renderChallans()">
                             <option value="">All Types</option>
@@ -880,7 +917,8 @@
             <button class="btn btn-secondary" style="background-color: var(--purple); color: white;" onclick="window.showMgmt('gift')"><i class="fa-solid fa-gift"></i> Gifts</button>
             <button class="btn btn-secondary" onclick="window.showMgmt('da')"><i class="fa-solid fa-truck"></i> Transport (DA)</button>
             
-            <button class="btn btn-secondary" id="btn-mgmt-users" style="background-color: var(--danger); color: white;" onclick="window.showMgmt('users')"><i class="fa-solid fa-users-cog"></i> Users</button>
+            <!-- Users & Permission Button - Only for Admin -->
+            <button class="btn btn-secondary" id="btn-mgmt-users" style="background-color: var(--danger); color: white; display:none;" onclick="window.showMgmt('users')"><i class="fa-solid fa-users-cog"></i> Users & Permissions</button>
         </div>
 
         <div id="mgmt-mpo" class="panel">
@@ -888,6 +926,14 @@
                 <h3>MPO List</h3>
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                     <input type="text" id="search-mpo" class="search-input-sm" placeholder="Search Name or ID..." oninput="window.renderMgmtTables()">
+
+                    <div style="display:flex; align-items:center; gap:5px; border-right: 1px solid #ddd; padding-right: 10px; margin-right: 5px;">
+                        <label style="margin:0; font-size:0.85rem; color:#7f8c8d;">Area:</label>
+                        <select id="filter-mpo-area" style="width: 150px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem;" onchange="window.renderMgmtTables()">
+                            <option value="">All Areas</option>
+                        </select>
+                    </div>
+
                     <button class="btn btn-secondary" onclick="window.openUploadModal('mpo')"><i class="fa-solid fa-file-excel" style="color:green;"></i> Upload Excel</button>
                     <button class="btn btn-primary" onclick="window.openModal('mpo')"><i class="fa-solid fa-plus"></i> Add MPO</button>
                 </div>
@@ -895,6 +941,7 @@
             <div class="table-responsive"><table id="table-mpo"></table></div>
         </div>
         
+        <!-- MODIFIED PRODUCT MANAGEMENT -->
         <div id="mgmt-prod" class="panel" style="display:none">
             <div class="panel-header">
                 <h3>Product List</h3>
@@ -907,6 +954,7 @@
             <div class="table-responsive"><table id="table-prod"></table></div>
         </div>
 
+        <!-- MODIFIED GIFT MANAGEMENT -->
         <div id="mgmt-gift" class="panel" style="display:none">
             <div class="panel-header">
                 <h3>Gift List</h3>
@@ -923,14 +971,48 @@
             <div class="panel-header">
                 <h3>Transport (DA) List</h3>
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:5px; border-right: 1px solid #ddd; padding-right: 10px; margin-right: 5px;">
+                        <label style="margin:0; font-size:0.85rem; color:#7f8c8d;">Depot:</label>
+                        <select id="filter-da-depot" style="width: 150px; padding: 5px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem;" onchange="window.renderMgmtTables()">
+                            <option value="">All Depots</option>
+                        </select>
+                    </div>
                     <button class="btn btn-primary" onclick="window.openModal('da')"><i class="fa-solid fa-plus"></i> Add DA</button>
                 </div>
             </div>
             <div class="table-responsive"><table id="table-da"></table></div>
         </div>
         
+        <!-- USER & PERMISSION MANAGEMENT -->
         <div id="mgmt-users" class="panel" style="display:none">
-            <div class="panel-header"><h3>System Users</h3><button class="btn btn-danger" onclick="window.openModal('user')"><i class="fa-solid fa-plus"></i> Add User</button></div>
+            <div class="panel-header">
+                <h3>User Accounts & Permissions</h3>
+                <button class="btn btn-danger" onclick="window.openModal('user')"><i class="fa-solid fa-plus"></i> Add User</button>
+            </div>
+            
+            <!-- PERMISSION CONTROL -->
+            <div style="background: #fff3cd; padding: 15px; border-radius: 6px; margin-bottom: 20px; border: 1px solid var(--warning);">
+                <h4 style="margin-top:0; color:var(--warning)"><i class="fa-solid fa-shield-halved"></i> Permission Control</h4>
+                <p style="font-size:0.85rem; color:#666; margin-bottom: 15px;">Enable delete permissions for specific roles. Admins always have delete access.</p>
+                
+                <div style="display:flex; gap:40px; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <label class="switch">
+                            <input type="checkbox" id="perm-dic-delete" onchange="window.updatePermissions()">
+                            <span class="slider"></span>
+                        </label>
+                        <span style="font-weight:bold;">Enable Delete For DIC</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <label class="switch">
+                            <input type="checkbox" id="perm-user-delete" onchange="window.updatePermissions()">
+                            <span class="slider"></span>
+                        </label>
+                        <span style="font-weight:bold;">Enable Delete For User</span>
+                    </div>
+                </div>
+            </div>
+            
             <div class="table-responsive"><table id="table-users"></table></div>
         </div>
     </section>
@@ -1002,6 +1084,7 @@
         <div style="margin-top: 20px; text-align: right; border-top: 1px solid #eee; padding-top: 10px;">
             <button class="btn btn-secondary" onclick="document.getElementById('view-challan-modal').style.display='none'">Close</button>
             <button class="btn btn-primary" id="vc-print-btn"><i class="fa-solid fa-print"></i> Print Challan</button>
+            <button class="btn btn-danger" id="vc-delete-btn" style="display:none;"><i class="fa-solid fa-trash"></i> Delete</button>
         </div>
     </div>
 </div>
@@ -1015,8 +1098,8 @@
         <div style="background: #e8f4fd; padding: 15px; border-radius:5px; margin-bottom: 15px; font-size: 0.9rem;">
             <strong>Instructions:</strong><br>
             1. The first row of your Excel file must contain Headers.<br>
-            2. <strong>MPO Headers:</strong> ID, Name, Territory, Area, Region, <strong>CategoryProd</strong>, <strong>CategoryGift</strong>, Sales, isActive (Optional - true/false)<br>
-            3. <strong>Product/Gift Headers:</strong> ID, Name, Pack, Unit, QtyA, QtyB, QtyC, QtyD, QtyE, ReceivedStock. (Note: For Products, ID is your Manual ID like 'ASL').
+            2. <strong>MPO Headers:</strong> ID, Name, Territory, Area, Region, <strong>CategoryProd</strong>, <strong>CategoryGift</strong>, Sales, DepotId (Optional), isActive (Optional - true/false)<br>
+            3. <strong>Product/Gift Headers:</strong> ID, Name, Pack, Unit, QtyA, QtyB, QtyC, QtyD, QtyE, ReceivedStock, DepotId (Optional). (Note: For Products, ID is your Manual ID like 'ASL').
         </div>
 
         <div class="form-group">
@@ -1104,17 +1187,24 @@
 <!-- HAND OVER CHALLAN PRINT AREA -->
 <div id="print-handover-area">
     <div class="ho-container">
+        <!-- Center Header -->
         <div class="ho-title">HAND OVER CHALLAN</div>
         <div class="ho-sep"></div>
+        
+        
+        <!-- Row 1 -->
         <div class="ho-header-row">
             <div>Challan No: <span id="ho-p-no"></span></div>
             <div>Date: <span id="ho-p-date"></span></div>
         </div>
+        
+        <!-- Row 2 -->
         <div class="ho-header-row">
             <div>From: <span id="ho-p-from"></span></div>
             <div>To: <span id="ho-p-to"></span></div>
         </div>
        <div class="ho-sep"></div>
+        <!-- Items Table -->
         <table class="ho-items-table">
             <thead>
                 <tr>
@@ -1128,9 +1218,15 @@
             </thead>
             <tbody id="ho-p-items"></tbody>
         </table>
+       
+        
+        <!-- Total Row -->
         <div class="ho-total-row">
             Total Qty: <span id="ho-p-total"></span>
         </div>
+
+
+        <!-- Signatures -->
         <div class="ho-signatures">
             <div>Handed Over By: __________</div>
             <div>Received By: __________</div>
@@ -1160,6 +1256,16 @@
         </thead>
         <tbody id="sp-table-body"></tbody>
     </table>
+    
+    <div style="margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; width: 100%;">
+        <div style="text-align: left; font-weight: bold; border-top: 1px solid #000; padding-top: 10px; font-size: 11px; width: 40%;">
+            End of Report
+        </div>
+        <div style="text-align: right; width: 40%;">
+            <div style="border-bottom: 1px solid #000; height: 40px; margin-bottom: 5px;"></div>
+            <div style="font-weight: bold; text-transform: uppercase;">Sign By DIC</div>
+        </div>
+    </div>
 </div>
 
 <!-- FIREBASE & APPLICATION LOGIC -->
@@ -1170,14 +1276,14 @@
     // --- FIREBASE CONFIGURATION ---
     const firebaseConfig = {
         apiKey: "AIzaSyD3DBNkMcvm9RF1QNd6g37mn-todxR4THQ",
-        authDomain: "mplfpdc.firebaseapp.com",
-        databaseURL: "https://mplfpdc-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "mplfpdc",
-        storageBucket: "mplfpdc.firebasestorage.app",
-        messagingSenderId: "1004917483554",
-        appId: "1:1004917483554:web:91ee71365c64869e07027b",
-        measurementId: "G-S3JLB16V13"
-    };
+  authDomain: "mplfpdc.firebaseapp.com",
+  databaseURL: "https://mplfpdc-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "mplfpdc",
+  storageBucket: "mplfpdc.firebasestorage.app",
+  messagingSenderId: "1004917483554",
+  appId: "1:1004917483554:web:91ee71365c64869e07027b",
+  measurementId: "G-S3JLB16V13"
+};
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
@@ -1186,8 +1292,11 @@
     let currentUser = null; 
     let currentDepotFilter = 'ALL'; 
     let allDepots = new Set();
-    let listeners = []; // Store listener unsubscribes
+    let appSettings = { allowDeleteDIC: false, allowDeleteUser: false }; // New Settings State
     
+    let productListeners = []; 
+    let giftListeners = []; 
+
     let data = {
         mpos: [], das: [], prods: [], gifts: [], challans: [], users: [], handovers: []
     };
@@ -1195,8 +1304,10 @@
     let currentMPO = null;
     let selectedProducts = new Set();
     let selectedGifts = new Set();
+    let selectedMpoForDialog = null;
     let manualSelections = {}; 
     let handOverSelections = {}; 
+
     let editType = null; 
     let editId = null;
 
@@ -1208,29 +1319,54 @@
         const errDiv = document.getElementById('login-error');
         errDiv.style.display = 'none';
 
-        if (!u || !p) { showLoginError("Please enter Username and Password."); return; }
+        if (!u || !p) {
+            showLoginError("Please enter Username and Password.");
+            return;
+        }
 
+        // Admin Login
         if (u.toUpperCase() === 'KS' && p === 'Monico@Ku007') {
             currentUser = { username: 'KS', role: 'admin', depotId: null };
             completeLogin();
             return;
         }
 
+        // User Login
         document.getElementById('loader').style.display = 'block';
+
         get(ref(db, 'users')).then((snapshot) => {
             document.getElementById('loader').style.display = 'none';
-            if (!snapshot.exists()) { showLoginError("No users found."); return; }
+            
+            if (!snapshot.exists()) {
+                showLoginError("No users found in Database.");
+                return;
+            }
+
             const users = snapshot.val();
-            const foundUser = Object.values(users).find(user => 
+            const userList = Object.values(users);
+            
+            // Find User (Case Insensitive)
+            const foundUser = userList.find(user => 
                 user.username.toLowerCase() === u.toLowerCase() && user.password === p
             );
+            
             if (foundUser) {
-                currentUser = { username: foundUser.username, role: 'user', depotId: foundUser.depotId };
+                // Assign Role: Default to 'user' if not set
+                const role = foundUser.role || 'user';
+                
+                currentUser = { 
+                    username: foundUser.username, 
+                    role: role, 
+                    depotId: foundUser.depotId 
+                };
                 completeLogin();
-            } else { showLoginError("Invalid Username or Password."); }
+            } else {
+                showLoginError("Invalid Username or Password.");
+            }
         }).catch((error) => {
+            console.error("Login Error:", error);
             document.getElementById('loader').style.display = 'none';
-            showLoginError("Connection Failed.");
+            showLoginError("Connection Failed. " + error.message);
         });
     }
 
@@ -1245,177 +1381,418 @@
 
     function completeLogin() {
         document.getElementById('login-overlay').style.display = 'none';
-        document.getElementById('u-name').innerText = currentUser.username + (currentUser.role === 'admin' ? ' (Admin)' : '');
         
+        // UI Setup based on Role
+        const roleDisplay = currentUser.role === 'admin' ? ' (Admin)' : currentUser.role === 'dic' ? ' (DIC)' : ' (User)';
+        document.getElementById('u-name').innerText = currentUser.username + roleDisplay;
+        
+        // Admin specific UI
         if (currentUser.role === 'admin') {
             document.getElementById('depot-filter-container').style.display = 'block';
-            document.getElementById('btn-mgmt-users').style.display = 'inline-flex'; 
+            document.getElementById('btn-mgmt-users').style.display = 'inline-flex';
         } else {
             currentDepotFilter = currentUser.depotId;
             document.getElementById('depot-filter-container').style.display = 'none';
-            document.getElementById('btn-mgmt-users').style.display = 'none';
+            document.getElementById('btn-mgmt-users').style.display = 'none'; // Users cannot access User Mgmt
         }
-        initAppListeners();
+
+        initDataListeners();
     }
 
-    window.logout = function() { location.reload(); };
+    window.logout = function() {
+        location.reload();
+    };
 
     window.changeDepotFilter = function() {
         currentDepotFilter = document.getElementById('global-depot-filter').value;
-        initAppListeners(); // Re-initialize listeners with new filter
+        productListeners.forEach(unsub => unsub());
+        productListeners = [];
+        giftListeners.forEach(unsub => unsub());
+        giftListeners = [];
+        initProductListeners();
+        initGiftListeners(); 
     };
 
-    // --- DATA LISTENERS (DEPOT WISE) ---
-    function initAppListeners() {
-        // Clear previous listeners
-        listeners.forEach(unsub => unsub());
-        listeners = [];
-        // Clear data
-        data = { mpos: [], das: [], prods: [], gifts: [], challans: [], users: [], handovers: [] };
-        
+    // --- PERMISSION CHECKER ---
+    window.hasDeletePermission = function() {
+        if (!currentUser) return false;
+        if (currentUser.role === 'admin') return true;
+        if (currentUser.role === 'dic' && appSettings.allowDeleteDIC) return true;
+        if (currentUser.role === 'user' && appSettings.allowDeleteUser) return true;
+        return false;
+    };
+
+    function getFilteredData(rawData) {
+        if (!rawData) return [];
+        let result = [];
+        if (currentUser.role === 'admin' && currentDepotFilter === 'ALL') {
+            result = rawData;
+        } else if (currentUser.role === 'admin' && currentDepotFilter !== 'ALL') {
+            result = rawData.filter(item => item.depotId === currentDepotFilter);
+        } else {
+            result = rawData.filter(item => item.depotId === currentUser.depotId);
+        }
+        return result;
+    }
+
+    function initDataListeners() {
         document.getElementById('loader').style.display = 'block';
 
-        // Users are always global (Admin only)
-        if(currentUser.role === 'admin') {
-            const unsubUsers = onValue(ref(db, 'users'), (snap) => {
-                data.users = [];
-                if(snap.exists()) snap.forEach(c => { data.users.push({...c.val(), key: c.key}); });
-                updateUI();
-            });
-            listeners.push(unsubUsers);
-        }
+        // Listen for Settings/Permissions
+        onValue(ref(db, 'settings'), (snapshot) => {
+            if(snapshot.exists()) {
+                appSettings = snapshot.val();
+                // Update UI Toggles if visible
+                if(document.getElementById('perm-dic-delete')) {
+                    document.getElementById('perm-dic-delete').checked = appSettings.allowDeleteDIC || false;
+                    document.getElementById('perm-user-delete').checked = appSettings.allowDeleteUser || false;
+                }
+            }
+            updateUI(); // Re-render tables to update button visibility
+        });
 
-        // Handle Depot Logic
-        if (currentUser.role === 'admin' && currentDepotFilter === 'ALL') {
-            // Listen to ALL DEPOTS
-            const unsubDepots = onValue(ref(db, 'depots'), (snapshot) => {
-                data.mpos = []; data.das = []; data.prods = []; data.gifts = []; data.challans = []; data.handovers = [];
-                allDepots = new Set();
-                
+        const listen = (path, key) => {
+            onValue(ref(db, path), (snapshot) => {
+                data[key] = [];
                 if(snapshot.exists()) {
-                    snapshot.forEach(depotSnap => {
-                        const depotId = depotSnap.key;
-                        allDepots.add(depotId);
-
-                        const processList = (childName, targetArray) => {
-                            const childSnap = depotSnap.child(childName);
-                            if(childSnap.exists()) {
-                                childSnap.forEach(itemSnap => {
-                                    targetArray.push({ ...itemSnap.val(), key: itemSnap.key, depotId: depotId });
-                                });
-                            }
-                        };
-
-                        processList('mpos', data.mpos);
-                        processList('das', data.das);
-                        processList('products', data.prods);
-                        processList('gifts', data.gifts);
-                        processList('challans', data.challans);
-                        processList('handovers', data.handovers);
+                    snapshot.forEach((childSnapshot) => {
+                        const item = childSnapshot.val();
+                        item.key = childSnapshot.key; 
+                        data[key].push(item);
+                        if(item.depotId) allDepots.add(item.depotId);
                     });
                 }
                 updateUI();
             });
-            listeners.push(unsubDepots);
+        };
 
-        } else {
-            // Listen to SPECIFIC DEPOT
-            const depotId = (currentUser.role === 'admin') ? currentDepotFilter : currentUser.depotId;
-            if(!depotId) { document.getElementById('loader').style.display = 'none'; return; }
+        listen('mpos', 'mpos');
+        listen('das', 'das');
+        listen('challans', 'challans');
+        listen('users', 'users');
+        listen('handovers', 'handovers');
 
-            allDepots = new Set([depotId]);
+        initProductListeners();
+        initGiftListeners();
+    }
 
-            const listen = (path, key) => {
-                const unsub = onValue(ref(db, path), (snapshot) => {
-                    data[key] = [];
+    function initProductListeners() {
+        data.prods = [];
+
+        if (currentUser.role === 'user' || currentUser.role === 'dic') {
+            const userDepotId = currentUser.depotId;
+            const prodRef = ref(db, `depots/${userDepotId}/products`);
+            const unsub = onValue(prodRef, (snapshot) => {
+                if(!currentUser) return;
+                data.prods = [];
+                if(snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const p = childSnapshot.val();
+                        p.key = childSnapshot.key;
+                        p.id = childSnapshot.key;
+                        p.depotId = userDepotId;
+                        data.prods.push(p);
+                    });
+                }
+                updateUI();
+            });
+            productListeners.push(unsub);
+        } else if (currentUser.role === 'admin') {
+            if (currentDepotFilter === 'ALL') {
+                const depotsRef = ref(db, 'depots');
+                const unsubDepots = onValue(depotsRef, (snapshot) => {
+                    data.prods = [];
                     if(snapshot.exists()) {
-                        snapshot.forEach((childSnapshot) => {
-                            data[key].push({ ...childSnapshot.val(), key: childSnapshot.key, depotId: depotId });
+                        snapshot.forEach((depotSnapshot) => {
+                            const depotId = depotSnapshot.key;
+                            const productsSnap = depotSnapshot.child('products');
+                            if(productsSnap.exists()) {
+                                productsSnap.forEach((prodSnap) => {
+                                    const p = prodSnap.val();
+                                    p.key = prodSnap.key;
+                                    p.id = prodSnap.key;
+                                    p.depotId = depotId;
+                                    data.prods.push(p);
+                                });
+                            }
                         });
                     }
                     updateUI();
                 });
-                listeners.push(unsub);
-            };
+                productListeners.push(unsubDepots);
+            } else {
+                const specificDepotId = currentDepotFilter;
+                const prodRef = ref(db, `depots/${specificDepotId}/products`);
+                const unsub = onValue(prodRef, (snapshot) => {
+                    data.prods = [];
+                    if(snapshot.exists()) {
+                        snapshot.forEach((childSnapshot) => {
+                            const p = childSnapshot.val();
+                            p.key = childSnapshot.key;
+                            p.id = childSnapshot.key;
+                            p.depotId = specificDepotId;
+                            data.prods.push(p);
+                        });
+                    }
+                    updateUI();
+                });
+                productListeners.push(unsub);
+            }
+        }
+    }
 
-            listen(`depots/${depotId}/mpos`, 'mpos');
-            listen(`depots/${depotId}/das`, 'das');
-            listen(`depots/${depotId}/products`, 'prods');
-            listen(`depots/${depotId}/gifts`, 'gifts');
-            listen(`depots/${depotId}/challans`, 'challans');
-            listen(`depots/${depotId}/handovers`, 'handovers');
+    function initGiftListeners() {
+        data.gifts = [];
+
+        if (currentUser.role === 'user' || currentUser.role === 'dic') {
+            const userDepotId = currentUser.depotId;
+            const giftRef = ref(db, `depots/${userDepotId}/gifts`);
+            const unsub = onValue(giftRef, (snapshot) => {
+                if(!currentUser) return;
+                data.gifts = [];
+                if(snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const p = childSnapshot.val();
+                        p.key = childSnapshot.key;
+                        p.id = childSnapshot.key;
+                        p.depotId = userDepotId;
+                        data.gifts.push(p);
+                    });
+                }
+                updateUI();
+            });
+            giftListeners.push(unsub);
+        } else if (currentUser.role === 'admin') {
+            if (currentDepotFilter === 'ALL') {
+                const depotsRef = ref(db, 'depots');
+                const unsubDepots = onValue(depotsRef, (snapshot) => {
+                    data.gifts = [];
+                    if(snapshot.exists()) {
+                        snapshot.forEach((depotSnapshot) => {
+                            const depotId = depotSnapshot.key;
+                            const giftsSnap = depotSnapshot.child('gifts');
+                            if(giftsSnap.exists()) {
+                                giftsSnap.forEach((giftSnap) => {
+                                    const p = giftSnap.val();
+                                    p.key = giftSnap.key;
+                                    p.id = giftSnap.key;
+                                    p.depotId = depotId;
+                                    data.gifts.push(p);
+                                });
+                            }
+                        });
+                    }
+                    updateUI();
+                });
+                giftListeners.push(unsubDepots);
+            } else {
+                const specificDepotId = currentDepotFilter;
+                const giftRef = ref(db, `depots/${specificDepotId}/gifts`);
+                const unsub = onValue(giftRef, (snapshot) => {
+                    data.gifts = [];
+                    if(snapshot.exists()) {
+                        snapshot.forEach((childSnapshot) => {
+                            const p = childSnapshot.val();
+                            p.key = childSnapshot.key;
+                            p.id = childSnapshot.key;
+                            p.depotId = specificDepotId;
+                            data.gifts.push(p);
+                        });
+                    }
+                    updateUI();
+                });
+                giftListeners.push(unsub);
+            }
         }
     }
 
     function updateUI() {
         document.getElementById('loader').style.display = 'none';
         
-        const activeMpos = data.mpos.filter(m => m.isActive !== false);
+        const fMpos = getFilteredData(data.mpos);
+        const fDas = getFilteredData(data.das);
+        const fProds = data.prods; 
+        const fGifts = data.gifts; 
+        const fChallans = getFilteredData(data.challans);
+        const fUsers = currentUser.role === 'admin' ? data.users : [];
+
+        const activeMpos = fMpos.filter(m => m.isActive !== false);
         document.getElementById('d-total-mpo').innerText = activeMpos.length;
-        document.getElementById('d-total-prod').innerText = data.prods.length;
-        document.getElementById('d-total-gifts').innerText = data.gifts.length;
-        document.getElementById('d-total-da').innerText = data.das.length;
+        document.getElementById('d-total-prod').innerText = fProds.length;
+        document.getElementById('d-total-gifts').innerText = fGifts.length;
+        document.getElementById('d-total-da').innerText = fDas.length;
         
-        const prodChallans = data.challans.filter(c => c.type === 'Product').length;
-        const giftChallans = data.challans.filter(c => c.type === 'Gift').length;
+        const prodChallans = fChallans.filter(c => c.type === 'Product').length;
+        const giftChallans = fChallans.filter(c => c.type === 'Gift').length;
         document.getElementById('d-total-prod-challan').innerText = prodChallans;
         document.getElementById('d-total-gift-challan').innerText = giftChallans;
 
-        // Stats Logic...
-        let catStats = { 'A': { sales: 0, count: 0 }, 'B': { sales: 0, count: 0 }, 'C': { sales: 0, count: 0 }, 'D': { sales: 0, count: 0 }, 'E': { sales: 0, count: 0 } };
+        let catStats = { 
+            'A': { sales: 0, count: 0 }, 
+            'B': { sales: 0, count: 0 }, 
+            'C': { sales: 0, count: 0 },
+            'D': { sales: 0, count: 0 },
+            'E': { sales: 0, count: 0 } 
+        };
+
         activeMpos.forEach(m => {
             const cat = m.categoryProd || m.category || 'A'; 
-            if(catStats[cat]) { catStats[cat].sales += Number(m.sales || 0); catStats[cat].count++; }
+            if(catStats[cat]) {
+                catStats[cat].sales += Number(m.sales || 0);
+                catStats[cat].count++;
+            }
         });
-        ['A', 'B', 'C', 'D', 'E'].forEach(cat => {
-            document.getElementById(`cat-sales-${cat}`).innerText = catStats[cat].sales.toLocaleString();
-            document.getElementById(`cat-mpo-${cat}`).innerText = catStats[cat].count;
-        });
+
+        document.getElementById('cat-sales-A').innerText = catStats['A'].sales.toLocaleString();
+        document.getElementById('cat-sales-B').innerText = catStats['B'].sales.toLocaleString();
+        document.getElementById('cat-sales-C').innerText = catStats['C'].sales.toLocaleString();
+        document.getElementById('cat-sales-D').innerText = catStats['D'].sales.toLocaleString();
+        document.getElementById('cat-sales-E').innerText = catStats['E'].sales.toLocaleString();
+
+        document.getElementById('cat-mpo-A').innerText = catStats['A'].count;
+        document.getElementById('cat-mpo-B').innerText = catStats['B'].count;
+        document.getElementById('cat-mpo-C').innerText = catStats['C'].count;
+        document.getElementById('cat-mpo-D').innerText = catStats['D'].count;
+        document.getElementById('cat-mpo-E').innerText = catStats['E'].count;
 
         window.populateStatsFilters();
-        window.renderDashboardChallanStats();
-        window.populateSelects(activeMpos, data.das);
-        window.renderMgmtTables();
-        window.renderChallans();
-        window.renderCategoryView(activeMpos);
-        window.renderStockReport();
+        window.renderDashboardChallanStats(fChallans);
 
-        // Depot Dropdowns Update
+        window.populateSelects(activeMpos, fDas);
+        window.renderMgmtTables(fMpos, fProds, fGifts, fDas, fUsers);
+        window.renderChallans(fChallans, fMpos);
+        
+        window.renderCategoryView(activeMpos);
+        window.renderStockReport(fProds, fGifts, fChallans);
+
+        // Populate Hand Over Dropdowns
+        const hoDepotInput = document.getElementById('ho-from-depot');
+        if(currentUser.role === 'admin') hoDepotInput.value = currentDepotFilter === 'ALL' ? 'All Depots' : currentDepotFilter;
+        else hoDepotInput.value = currentUser.depotId;
+
+        const hoAreaSelect = document.getElementById('ho-to-area');
+        const currentHoArea = hoAreaSelect.value;
+        hoAreaSelect.innerHTML = '<option value="">-- Select Destination --</option>';
+        
+        const uniqueAreas = new Set(activeMpos.map(m => m.area).filter(a => a));
+        Array.from(uniqueAreas).sort().forEach(area => {
+            hoAreaSelect.innerHTML += `<option value="${area}">${area}</option>`;
+        });
+        hoAreaSelect.innerHTML += '<option disabled>──────────</option>';
+        Array.from(allDepots).sort().forEach(depot => {
+             hoAreaSelect.innerHTML += `<option value="${depot}">${depot} (Depot)</option>`;
+        });
+        hoAreaSelect.value = currentHoArea;
+
         if(currentUser.role === 'admin') {
             const select = document.getElementById('global-depot-filter');
             const currentVal = select.value;
             select.innerHTML = '<option value="ALL">All Depots</option>';
-            Array.from(allDepots).sort().forEach(depot => select.innerHTML += `<option value="${depot}">${depot}</option>`);
+            Array.from(allDepots).sort().forEach(depot => {
+                select.innerHTML += `<option value="${depot}">${depot}</option>`;
+            });
             select.value = currentVal;
         }
 
-        // Hand Over Depo Input
-        const hoDepotInput = document.getElementById('ho-from-depot');
-        if(currentUser.role === 'admin') hoDepotInput.value = currentDepotFilter === 'ALL' ? 'All Depots' : currentDepotFilter;
-        else hoDepotInput.value = currentUser.depotId;
-        
-        const hoAreaSelect = document.getElementById('ho-to-area');
-        hoAreaSelect.innerHTML = '<option value="">-- Select Destination --</option>';
-        const uniqueAreas = new Set(activeMpos.map(m => m.area).filter(a => a));
-        Array.from(uniqueAreas).sort().forEach(area => hoAreaSelect.innerHTML += `<option value="${area}">${area}</option>`);
-        
-        // Maintain state if needed
         const mpoId = document.getElementById('gen-mpo').value;
         if(mpoId) window.loadMPODetails();
+        const mpoIdGift = document.getElementById('gen-mpo-gift').value;
+        if(mpoIdGift) window.loadGiftMPODetails();
+        
         const manualMpoId = document.getElementById('manual-mpo').value;
         if(manualMpoId) window.loadManualMPODetails();
+        
+        if(document.getElementById('handOver').classList.contains('active')) {
+            window.loadHandOverItems();
+        }
     }
+    
+    // --- Permission Update Function ---
+    window.updatePermissions = function() {
+        if(currentUser.role !== 'admin') return;
+        
+        const allowDic = document.getElementById('perm-dic-delete').checked;
+        const allowUser = document.getElementById('perm-user-delete').checked;
 
-    // --- GLOBAL HELPER FUNCTIONS ---
+        set(ref(db, 'settings'), {
+            allowDeleteDIC: allowDic,
+            allowDeleteUser: allowUser
+        }).then(() => {
+            showToast("Permissions Updated");
+        }).catch(err => showToast("Error updating permissions"));
+    };
+
+    window.populateStatsFilters = function() {
+        const selects = ['stats-filter-prod', 'stats-filter-gift'];
+        selects.forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            if (sel.options.length > 0) return;
+
+            for (let i = 0; i < 12; i++) {
+                const d = new Date();
+                d.setMonth(d.getMonth() - i);
+                const val = d.toISOString().slice(0, 7);
+                const label = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+                sel.innerHTML += `<option value="${val}">${label}</option>`;
+            }
+        });
+    };
+
+    window.renderDashboardChallanStats = function(fChallans) {
+        const prodContainer = document.getElementById('dashboard-prod-stats');
+        const giftContainer = document.getElementById('dashboard-gift-stats');
+        const categories = ['A', 'B', 'C', 'D', 'E'];
+        
+        const prodFilterVal = document.getElementById('stats-filter-prod')?.value;
+        const giftFilterVal = document.getElementById('stats-filter-gift')?.value;
+
+        const generateCards = (type, filterVal) => {
+            let html = '';
+            categories.forEach(cat => {
+                const challansInCat = fChallans.filter(c => {
+                    const cDate = new Date(c.timestamp);
+                    const cDateStr = cDate.toISOString().slice(0, 7);
+                    return c.type === type && c.mpoCat === cat && cDateStr === filterVal;
+                });
+
+                const count = challansInCat.length;
+                const totalQty = challansInCat.reduce((sum, c) => {
+                    return sum + c.items.reduce((iSum, i) => iSum + (Number(i.issueQty) || 0), 0);
+                }, 0);
+
+                const badgeColor = type === 'Product' ? 'var(--accent)' : 'var(--purple)';
+
+                html += `
+                    <div class="card cat-stat-card type-${cat}">
+                        <small style="color:${badgeColor}; font-weight:bold;">CATEGORY ${cat} (${type})</small>
+                        <h2 style="margin: 10px 0;">${count}</h2>
+                        <p style="margin:0; font-size: 0.9rem;">Total Issued</p>
+                        <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
+                        <small>Quantity: <strong>${totalQty}</strong></small>
+                    </div>
+                `;
+            });
+            return html;
+        };
+
+        if (prodFilterVal) prodContainer.innerHTML = generateCards('Product', prodFilterVal);
+        if (giftFilterVal) giftContainer.innerHTML = generateCards('Gift', giftFilterVal);
+    };
+
     window.nav = function(id) {
         document.querySelectorAll('.section').forEach(s => { s.classList.remove('active'); s.style.display = 'none'; });
         const target = document.getElementById(id);
         if (target) { target.classList.add('active'); target.style.display = 'block'; }
+        
         document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('nav button').forEach(btn => {
             if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(`'${id}'`)) btn.classList.add('active');
         });
         window.scrollTo(0, 0);
+
+        if(id === 'reports') window.renderStockReport(data.prods, data.gifts, getFilteredData(data.challans));
+        if(id === 'challans') window.renderChallans(getFilteredData(data.challans), getFilteredData(data.mpos));
         if(id === 'handOver') window.loadHandOverItems();
     };
 
@@ -1427,24 +1804,21 @@
     };
 
     window.showToast = function(msg) {
-        const x = document.getElementById("toast"); x.innerText = msg; x.className = "show";
+        const x = document.getElementById("toast");
+        x.innerText = msg;
+        x.className = "show";
         setTimeout(() => { x.className = x.className.replace("show", ""); }, 3000);
     };
-    
-    window.toggleMobileMenu = function() {
-        const menu = document.getElementById('mobile-nav');
-        if (menu) menu.classList.toggle('active');
-    };
 
-    // --- CATEGORY VIEW ---
     let searchQuery = '';
     window.filterCategoryView = function() {
         searchQuery = document.getElementById('mpo-search-input').value.toLowerCase();
-        window.renderCategoryView(data.mpos.filter(m => m.isActive !== false));
+        window.renderCategoryView(getFilteredData(data.mpos).filter(m => m.isActive !== false));
     };
     window.clearMpoSearch = function() {
-        document.getElementById('mpo-search-input').value = ''; searchQuery = '';
-        window.renderCategoryView(data.mpos.filter(m => m.isActive !== false));
+        document.getElementById('mpo-search-input').value = '';
+        searchQuery = '';
+        window.renderCategoryView(getFilteredData(data.mpos).filter(m => m.isActive !== false));
     };
 
     window.renderCategoryView = function(mpos) {
@@ -1453,16 +1827,32 @@
         const categories = ['A', 'B', 'C', 'D', 'E']; 
 
         categories.forEach(cat => {
-            let mposInCat = mpos.filter(m => (m.categoryProd || m.category || 'A') === cat);
-            const filteredMpos = mposInCat.filter(m => m.name.toLowerCase().includes(searchQuery) || m.id.toLowerCase().includes(searchQuery));
-            filteredMpos.sort((a, b) => (a.area || '').localeCompare((b.area || '')));
+            let mposInCat = mpos.filter(m => {
+                const mpoCat = m.categoryProd || m.category || 'A';
+                return mpoCat === cat;
+            });
+
+            const filteredMpos = mposInCat.filter(m => {
+                const nameMatch = m.name.toLowerCase().includes(searchQuery);
+                const idMatch = m.id.toLowerCase().includes(searchQuery);
+                return nameMatch || idMatch;
+            });
+
+            filteredMpos.sort((a, b) => {
+                const areaA = (a.area || '').toLowerCase();
+                const areaB = (b.area || '').toLowerCase();
+                if (areaA < areaB) return -1;
+                if (areaA > areaB) return 1;
+                return 0;
+            });
 
             const totalSales = filteredMpos.reduce((sum, m) => sum + (Number(m.sales) || 0), 0);
             const mpoCount = filteredMpos.length;
 
             let mpoListHtml = '';
-            if(filteredMpos.length === 0) mpoListHtml = '<div style="padding:15px; text-align:center; color:#999;">No MPOs found.</div>';
-            else {
+            if(filteredMpos.length === 0) {
+                mpoListHtml = '<div style="padding:15px; text-align:center; color:#999;">No MPOs found.</div>';
+            } else {
                 filteredMpos.forEach(m => {
                     mpoListHtml += `
                         <div class="cat-mpo-item">
@@ -1471,8 +1861,8 @@
                                 <small>ID: ${m.id} | ${m.territory}</small>
                             </div>
                             <div class="cat-mpo-actions">
-                                <button class="btn-gen-prod" onclick="window.directToGen('prod', '${m.id}', '${m.depotId}')"><i class="fa-solid fa-box"></i> Prod</button>
-                                <button class="btn-gen-gift" onclick="window.directToGen('gift', '${m.id}', '${m.depotId}')"><i class="fa-solid fa-gift"></i> Gift</button>
+                                <button class="btn-gen-prod" onclick="window.directToGen('prod', '${m.id}')"><i class="fa-solid fa-box"></i> Prod</button>
+                                <button class="btn-gen-gift" onclick="window.directToGen('gift', '${m.id}')"><i class="fa-solid fa-gift"></i> Gift</button>
                             </div>
                         </div>`;
                 });
@@ -1494,58 +1884,11 @@
         });
     }
 
-    // --- DASHBOARD STATS ---
-    window.populateStatsFilters = function() {
-        const selects = ['stats-filter-prod', 'stats-filter-gift'];
-        selects.forEach(id => {
-            const sel = document.getElementById(id); if (!sel || sel.options.length > 0) return;
-            for (let i = 0; i < 12; i++) {
-                const d = new Date(); d.setMonth(d.getMonth() - i);
-                sel.innerHTML += `<option value="${d.toISOString().slice(0, 7)}">${d.toLocaleString('default', { month: 'long', year: 'numeric' })}</option>`;
-            }
-        });
-    };
-
-    window.renderDashboardChallanStats = function() {
-        const prodContainer = document.getElementById('dashboard-prod-stats');
-        const giftContainer = document.getElementById('dashboard-gift-stats');
-        const categories = ['A', 'B', 'C', 'D', 'E'];
-        
-        const prodFilterVal = document.getElementById('stats-filter-prod')?.value;
-        const giftFilterVal = document.getElementById('stats-filter-gift')?.value;
-
-        const generateCards = (type, filterVal) => {
-            let html = '';
-            categories.forEach(cat => {
-                const challansInCat = data.challans.filter(c => {
-                    const cDateStr = new Date(c.timestamp).toISOString().slice(0, 7);
-                    return c.type === type && c.mpoCat === cat && cDateStr === filterVal;
-                });
-                const count = challansInCat.length;
-                const totalQty = challansInCat.reduce((sum, c) => sum + c.items.reduce((iSum, i) => iSum + (Number(i.issueQty) || 0), 0), 0);
-                const badgeColor = type === 'Product' ? 'var(--accent)' : 'var(--purple)';
-                html += `
-                    <div class="card cat-stat-card type-${cat}">
-                        <small style="color:${badgeColor}; font-weight:bold;">CATEGORY ${cat} (${type})</small>
-                        <h2 style="margin: 10px 0;">${count}</h2>
-                        <p style="margin:0; font-size: 0.9rem;">Total Issued</p>
-                        <hr style="border:0; border-top:1px solid #eee; margin:10px 0;">
-                        <small>Quantity: <strong>${totalQty}</strong></small>
-                    </div>`;
-            });
-            return html;
-        };
-        if (prodFilterVal) prodContainer.innerHTML = generateCards('Product', prodFilterVal);
-        if (giftFilterVal) giftContainer.innerHTML = generateCards('Gift', giftFilterVal);
-    };
-
-    // --- GENERATOR LOGIC ---
     window.populateSelects = function(fMpos, fDas) {
         const mpoSel = document.getElementById('gen-mpo');
         const mpoSelGift = document.getElementById('gen-mpo-gift');
         const mpoSelManual = document.getElementById('manual-mpo'); 
         const filterSel = document.getElementById('filter-mpo');
-        
         const currentMpo = mpoSel.value;
         const currentFilter = filterSel.value;
 
@@ -1557,30 +1900,202 @@
         if(fMpos && fMpos.length) {
             fMpos.forEach(m => {
                 const catDisplay = `P: ${m.categoryProd||'-'} / G: ${m.categoryGift||'-'}`;
-                const opt = `<option value="${m.id}" data-depot="${m.depotId}">${m.name} (${m.id}) [${catDisplay}]</option>`;
+                const opt = `<option value="${m.id}">${m.name} (${m.id}) [${catDisplay}]</option>`;
                 mpoSel.innerHTML += opt;
                 mpoSelGift.innerHTML += opt;
                 mpoSelManual.innerHTML += opt; 
                 filterSel.innerHTML += `<option value="${m.id}">${m.name}</option>`;
             });
         }
+
         mpoSel.value = currentMpo;
+        mpoSelGift.value = ""; 
         filterSel.value = currentFilter;
     };
 
+    // --- Helper: Calculate Stock ---
+    function getItemClosingStock(item) {
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        let used = 0;
+        
+        const itemChallans = data.challans.filter(c => c.depotId === item.depotId);
+        const itemHandovers = data.handovers.filter(c => c.depotId === item.depotId);
+
+        itemChallans.forEach(c => {
+            const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
+            if(cDate === currentMonth && c.items) {
+                c.items.forEach(i => {
+                    if(i.id === item.id) used += parseInt(i.issueQty || 0);
+                });
+            }
+        });
+
+        itemHandovers.forEach(c => {
+            const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
+            if(cDate === currentMonth && c.items) {
+                c.items.forEach(i => {
+                    if(i.id === item.id) used += parseInt(i.issueQty || 0);
+                });
+            }
+        });
+
+        const opening = Number(item.openingStock || 0);
+        const received = Number(item.receivedThisMonth || 0);
+        return opening + received - used;
+    }
+
+    // --- HAND OVER LOGIC ---
+    window.loadHandOverItems = function() {
+        const container = document.getElementById('ho-product-list-container');
+        container.innerHTML = '';
+        handOverSelections = {}; 
+        updateCount('handover');
+
+        const allItems = [...data.prods, ...data.gifts].filter(p => p.isActive !== false);
+
+        allItems.forEach(p => {
+            const closing = getItemClosingStock(p);
+            
+            const div = document.createElement('div');
+            div.className = 'product-list-item';
+            div.innerHTML = `
+                <div class="product-list-info">
+                    <strong>${p.name} (${p.id})</strong>
+                    <span>Pack: ${p.pack} | Type: ${data.prods.includes(p) ? 'Product' : 'Gift'}</span>
+                </div>
+                <div style="font-weight:bold; color:var(--teal); margin-right:10px;">Closing: ${closing}</div>
+                <input type="number" min="0" class="manual-qty-input" placeholder="0" max="${closing}" onchange="window.updateHandOverSelection('${p.id}', this.value, '${data.prods.includes(p) ? 'prod' : 'gift'}')">
+            `;
+            container.appendChild(div);
+        });
+    };
+
+    window.updateHandOverSelection = function(id, qty, type) {
+        const q = parseInt(qty);
+        if (q && q > 0) handOverSelections[id] = { qty: q, type: type };
+        else delete handOverSelections[id];
+        updateCount('handover');
+    };
+
+    window.generateHandOverChallan = function() {
+        const toArea = document.getElementById('ho-to-area').value;
+        const fromDepot = document.getElementById('ho-from-depot').value;
+        
+        if(!toArea) return showToast("Please select a destination.");
+        if(Object.keys(handOverSelections).length === 0) return showToast("Please add items.");
+
+        const itemsArray = [];
+        
+        for (const [pid, val] of Object.entries(handOverSelections)) {
+            const sourceData = (val.type === 'gift') ? data.gifts : data.prods;
+            const p = sourceData.find(x => x.id === pid);
+            if(p) itemsArray.push({ ...p, issueQty: val.qty });
+        }
+
+        const dateObj = new Date();
+        const year = dateObj.getFullYear();
+        const month = ("0" + (dateObj.getMonth() +1)).slice(-2);
+        
+        let depotCode = "HO"; 
+        let assignedDepotId = currentUser.depotId; 
+        
+        if (currentUser.role === 'admin') assignedDepotId = currentDepotFilter === 'ALL' ? 'HQ' : currentDepotFilter;
+        if(assignedDepotId && assignedDepotId !== 'ALL') depotCode = assignedDepotId.substring(0, 2).toUpperCase();
+
+        const dateCode = `${year}${month}`;
+        const basePrefix = `HO-${dateCode}`;
+        
+        let maxSerial = 0;
+        if(data.handovers) {
+            data.handovers.forEach(c => { 
+                if(c.id && c.id.startsWith(basePrefix)) {
+                    const serial = parseInt(c.id.slice(-4));
+                    if(!isNaN(serial) && serial > maxSerial) maxSerial = serial;
+                }
+            });
+        }
+
+        const newSerial = maxSerial + 1;
+        const serialStr = newSerial.toString().padStart(4, '0');
+        const challanNo = `${basePrefix}-${serialStr}`;
+
+        const newChallan = {
+            id: challanNo,
+            date: dateObj.toLocaleDateString('en-GB'),
+            timestamp: Date.now(),
+            type: 'Hand Over',
+            from: fromDepot,
+            to: toArea,
+            items: itemsArray,
+            depotId: assignedDepotId
+        };
+
+        push(ref(db, 'handovers'), newChallan).then(() => {
+            showToast("Hand Over Challan Generated!");
+            
+            window.printHandOverChallan(newChallan);
+            handOverSelections = {};
+            window.loadHandOverItems();
+        }).catch(err => showToast("Error: " + err.message));
+    };
+
+    window.printHandOverChallan = function(c) {
+        document.getElementById('print-area').style.display = 'none';
+        document.getElementById('print-stock-area').style.display = 'none';
+        document.getElementById('print-handover-area').style.display = 'block';
+
+        document.getElementById('ho-p-no').innerText = c.id;
+        document.getElementById('ho-p-date').innerText = c.date;
+        document.getElementById('ho-p-from').innerText = c.from;
+        document.getElementById('ho-p-to').innerText = c.to;
+
+        const tbody = document.getElementById('ho-p-items');
+        tbody.innerHTML = '';
+        let total = 0;
+        let totalUnit = "pcs";
+        c.items.forEach((item, index) => {
+            total += parseInt(item.issueQty || 0);
+            if(item.unit) totalUnit = item.unit;
+            tbody.innerHTML += `
+                <tr>
+                    <td style="text-align:center">${index+1}</td>
+                    <td>${item.id}</td>
+                    <td>${item.name}</td>
+                    <td style="text-align:center">${item.pack}</td>
+                    <td style="text-align:center">${item.issueQty}</td>
+                    <td style="text-align:center">${item.unit || '-'}</td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('ho-p-total').innerText = `${total} ${totalUnit}`;
+
+        window.print();
+    };
+    // --- END HAND OVER ---
+    
     window.loadMPODetails = function() {
         const id = document.getElementById('gen-mpo').value;
+        const fMpos = getFilteredData(data.mpos).filter(m => m.isActive !== false);
+        const fDas = getFilteredData(data.das);
+        const fProds = data.prods; 
+
         const details = document.getElementById('mpo-details');
         const daSel = document.getElementById('gen-da');
         const listContainer = document.getElementById('product-list-container');
         
         if (!id) {
-            details.style.display = 'none'; daSel.disabled = true; daSel.innerHTML = '<option value="">-- Choose DA --</option>';
-            listContainer.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">Select MPO</div>';
-            currentMPO = null; selectedProducts.clear(); updateCount('prod'); return;
+            details.style.display = 'none';
+            daSel.disabled = true;
+            daSel.innerHTML = '<option value="">-- Choose DA --</option>';
+            listContainer.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">Select MPO to view products</div>';
+            currentMPO = null;
+            selectedProducts.clear();
+            updateCount('prod');
+            return;
         }
 
-        currentMPO = data.mpos.find(m => m.id === id);
+        currentMPO = fMpos.find(m => m.id === id);
         if(!currentMPO) return; 
 
         document.getElementById('d-name').innerText = currentMPO.name;
@@ -1591,187 +2106,243 @@
         document.getElementById('d-sales').innerText = currentMPO.sales ? Number(currentMPO.sales).toLocaleString() : '0';
         details.style.display = 'block';
 
-        daSel.disabled = false; daSel.innerHTML = '<option value="">-- Choose DA --</option>';
-        data.das.filter(d => d.depotId === currentMPO.depotId && d.isActive !== false).forEach(d => {
-            daSel.innerHTML += `<option value="${d.id}" ${d.id === currentMPO.daId ? 'selected' : ''}>${d.name}</option>`;
+        daSel.disabled = false;
+        daSel.innerHTML = '<option value="">-- Choose DA --</option>';
+        const mpoDepotDas = fDas.filter(d => d.depotId === currentMPO.depotId);
+        mpoDepotDas.forEach(d => {
+            const sel = d.id === currentMPO.daId ? 'selected' : '';
+            daSel.innerHTML += `<option value="${d.id}" ${sel}>${d.name}</option>`;
         });
 
-        listContainer.innerHTML = ''; selectedProducts.clear();
+        listContainer.innerHTML = '';
+        selectedProducts.clear();
         const cat = currentMPO.categoryProd || currentMPO.category || 'A';
         
-        data.prods.filter(p => p.depotId === currentMPO.depotId && p.isActive !== false).forEach(p => {
+        fProds.forEach(p => {
+            if (p.isActive === false || p.isActive === 'false') return;
+
             let qty = 0;
-            if(cat === 'A') qty = p.qtyA || 0; else if(cat === 'B') qty = p.qtyB || 0;
-            else if(cat === 'C') qty = p.qtyC || 0; else if(cat === 'D') qty = p.qtyD || 0;
+            if(cat === 'A') qty = p.qtyA || 0;
+            else if(cat === 'B') qty = p.qtyB || 0;
+            else if(cat === 'C') qty = p.qtyC || 0;
+            else if(cat === 'D') qty = p.qtyD || 0;
             else if(cat === 'E') qty = p.qtyE || 0;
+            else qty = 0;
+
             if (qty <= 0) return;
 
             const div = document.createElement('div');
             div.className = 'product-list-item';
             div.innerHTML = `
                 <input type="checkbox" class="prod-cb" value="${p.id}" onchange="window.toggleProd('${p.id}')">
-                <div class="product-list-info"><strong>${p.name}</strong><span>ID: ${p.id} | Pack: ${p.pack}</span></div>
-                <div style="font-size:0.7rem; color:#888; background:#eee; padding:2px 5px; border-radius:3px;">A:${p.qtyA} B:${p.qtyB} C:${p.qtyC}</div>
-                <div class="product-qty">Avail: ${qty}</div>`;
+                <div class="product-list-info">
+                    <strong>${p.name}</strong>
+                    <span>ID: ${p.id} | Pack: ${p.pack} | Unit: ${p.unit}</span>
+                </div>
+                <div style="display:flex; gap:5px; margin-left:auto; font-size:0.75rem; color:#666; background:#eee; padding:2px 5px; border-radius:3px;">
+                    A:${p.qtyA} B:${p.qtyB} C:${p.qtyC} D:${p.qtyD} E:${p.qtyE}
+                </div>
+                <div class="product-qty">Avail: ${qty}</div>
+            `;
             listContainer.appendChild(div);
         });
         updateCount('prod');
     };
 
     window.toggleProd = function(id) {
-        if(selectedProducts.has(id)) selectedProducts.delete(id); else selectedProducts.add(id);
+        if(selectedProducts.has(id)) selectedProducts.delete(id);
+        else selectedProducts.add(id);
         updateCount('prod');
     };
     window.toggleSelectAll = function() {
         const cbs = document.querySelectorAll('.prod-cb');
         const state = Array.from(cbs).every(cb => cb.checked);
-        cbs.forEach(cb => { cb.checked = !state; if(!state) selectedProducts.add(cb.value); else selectedProducts.delete(cb.value); });
+        cbs.forEach(cb => {
+            cb.checked = !state;
+            if(!state) selectedProducts.add(cb.value);
+            else selectedProducts.delete(cb.value);
+        });
         updateCount('prod');
     };
-    window.resetGenerator = function() { document.getElementById('gen-mpo').value = ""; loadMPODetails(); };
 
-    // --- GIFTS ---
     window.loadGiftMPODetails = function() {
         const id = document.getElementById('gen-mpo-gift').value;
+        const fMpos = getFilteredData(data.mpos).filter(m => m.isActive !== false);
+        const fDas = getFilteredData(data.das);
+        const fGifts = data.gifts; 
+        
         const details = document.getElementById('mpo-details-gift');
         const daSel = document.getElementById('gen-da-gift');
         const listContainer = document.getElementById('gift-list-container');
         
-        if (!id) { details.style.display = 'none'; daSel.disabled = true; currentMPO = null; return; }
-        currentMPO = data.mpos.find(m => m.id === id);
-        
+        if (!id) {
+            details.style.display = 'none';
+            daSel.disabled = true;
+            daSel.innerHTML = '<option value="">-- Choose DA --</option>';
+            listContainer.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">Select MPO to view gifts</div>';
+            return;
+        }
+
+        currentMPO = fMpos.find(m => m.id === id);
         document.getElementById('d-name-gift').innerText = currentMPO.name;
         document.getElementById('d-territory-gift').innerText = currentMPO.territory;
         document.getElementById('d-cat-gift').innerText = currentMPO.categoryGift || '-';
         details.style.display = 'block';
 
-        daSel.disabled = false; daSel.innerHTML = '<option value="">-- Choose DA --</option>';
-        data.das.filter(d => d.depotId === currentMPO.depotId && d.isActive !== false).forEach(d => daSel.innerHTML += `<option value="${d.id}">${d.name}</option>`);
+        daSel.disabled = false;
+        daSel.innerHTML = '<option value="">-- Choose DA --</option>';
+        const mpoDepotDas = fDas.filter(d => d.depotId === currentMPO.depotId);
+        mpoDepotDas.forEach(d => {
+            const sel = d.id === currentMPO.daId ? 'selected' : '';
+            daSel.innerHTML += `<option value="${d.id}" ${sel}>${d.name}</option>`;
+        });
 
-        listContainer.innerHTML = ''; selectedGifts.clear();
+        listContainer.innerHTML = '';
+        selectedGifts.clear();
         const cat = currentMPO.categoryGift || 'A';
         
-        data.gifts.filter(p => p.depotId === currentMPO.depotId && p.isActive !== false).forEach(p => {
+        fGifts.forEach(p => {
+            if (p.isActive === false || p.isActive === 'false') return;
+
             let qty = 0;
-            if(cat === 'A') qty = p.qtyA || 0; else if(cat === 'B') qty = p.qtyB || 0;
-            else if(cat === 'C') qty = p.qtyC || 0; else if(cat === 'D') qty = p.qtyD || 0;
+            if(cat === 'A') qty = p.qtyA || 0;
+            else if(cat === 'B') qty = p.qtyB || 0;
+            else if(cat === 'C') qty = p.qtyC || 0;
+            else if(cat === 'D') qty = p.qtyD || 0;
             else if(cat === 'E') qty = p.qtyE || 0;
+            else qty = 0;
 
             const div = document.createElement('div');
             div.className = 'product-list-item';
             div.innerHTML = `
                 <input type="checkbox" class="gift-cb" value="${p.id}" onchange="window.toggleGift('${p.id}')">
-                <div class="product-list-info"><strong>${p.name}</strong><span>ID: ${p.id}</span></div>
-                <div class="product-qty" style="color:var(--purple)">Avail: ${qty}</div>`;
+                <div class="product-list-info"><strong>${p.name}</strong><span>ID: ${p.id} | Pack: ${p.pack}</span></div>
+                <div style="display:flex; gap:5px; margin-left:auto; font-size:0.75rem; color:#666; background:#eee; padding:2px 5px; border-radius:3px;">
+                    A:${p.qtyA} B:${p.qtyB} C:${p.qtyC} D:${p.qtyD} E:${p.qtyE}
+                </div>
+                <div class="product-qty" style="color:var(--purple)">Avail: ${qty}</div>
+            `;
             listContainer.appendChild(div);
         });
         updateCount('gift');
     };
-    window.toggleGift = function(id) { if(selectedGifts.has(id)) selectedGifts.delete(id); else selectedGifts.add(id); updateCount('gift'); };
+
+    window.toggleGift = function(id) {
+        if(selectedGifts.has(id)) selectedGifts.delete(id);
+        else selectedGifts.add(id);
+        updateCount('gift');
+    };
     window.toggleSelectGiftAll = function() {
         const cbs = document.querySelectorAll('.gift-cb');
         const state = Array.from(cbs).every(cb => cb.checked);
-        cbs.forEach(cb => { cb.checked = !state; if(!state) selectedGifts.add(cb.value); else selectedGifts.delete(cb.value); });
+        cbs.forEach(cb => {
+            cb.checked = !state;
+            if(!state) selectedGifts.add(cb.value);
+            else selectedGifts.delete(cb.value);
+        });
         updateCount('gift');
     };
-    window.resetGiftGenerator = function() { document.getElementById('gen-mpo-gift').value = ""; loadGiftMPODetails(); };
 
     function updateCount(type) {
-        if(type === 'prod') { document.getElementById('selected-count').innerText = selectedProducts.size; document.getElementById('btn-gen-prod').disabled = selectedProducts.size === 0; }
-        else if(type === 'gift') { document.getElementById('selected-count-gift').innerText = selectedGifts.size; document.getElementById('btn-gen-gift').disabled = selectedGifts.size === 0; }
-        else if(type === 'manual') { const count = Object.keys(manualSelections).length; document.getElementById('manual-total-items').innerText = count; document.getElementById('btn-gen-manual').disabled = count === 0; }
-        else if(type === 'handover') { const total = Object.values(handOverSelections).reduce((a, b) => a + b.qty, 0); document.getElementById('ho-total-qty').innerText = total; document.getElementById('btn-gen-ho').disabled = total === 0; }
+        if(type === 'prod') {
+            document.getElementById('selected-count').innerText = selectedProducts.size;
+            document.getElementById('btn-gen-prod').disabled = selectedProducts.size === 0;
+        } else if(type === 'gift') {
+            document.getElementById('selected-count-gift').innerText = selectedGifts.size;
+            document.getElementById('btn-gen-gift').disabled = selectedGifts.size === 0;
+        } else if(type === 'manual') {
+            const count = Object.keys(manualSelections).length;
+            document.getElementById('manual-total-items').innerText = count;
+            document.getElementById('btn-gen-manual').disabled = count === 0;
+        } else if(type === 'handover') {
+            const total = Object.values(handOverSelections).reduce((a, b) => a + b.qty, 0);
+            document.getElementById('ho-total-qty').innerText = total;
+            document.getElementById('btn-gen-ho').disabled = total === 0;
+        }
     }
 
-    // --- MANUAL GENERATOR ---
+    window.resetGenerator = function() {
+        document.getElementById('gen-mpo').value = "";
+        loadMPODetails();
+    };
+    window.resetGiftGenerator = function() {
+        document.getElementById('gen-mpo-gift').value = "";
+        loadGiftMPODetails();
+    };
+    
     window.loadManualMPODetails = function() {
         const id = document.getElementById('manual-mpo').value;
-        const type = document.getElementById('manual-type-selector').value;
+        const type = document.getElementById('manual-type-selector').value; 
+        const fMpos = getFilteredData(data.mpos).filter(m => m.isActive !== false);
+        const fDas = getFilteredData(data.das);
+        const sourceData = (type === 'gift') ? data.gifts : data.prods;
+
         const details = document.getElementById('manual-mpo-details');
         const daSel = document.getElementById('manual-da');
         const listContainer = document.getElementById('manual-product-list-container');
+        const listTitle = document.getElementById('manual-list-title');
         
-        if (!id) { details.style.display = 'none'; daSel.disabled = true; manualSelections = {}; updateCount('manual'); return; }
-        currentMPO = data.mpos.find(m => m.id === id);
+        if (!id) {
+            details.style.display = 'none';
+            daSel.disabled = true;
+            daSel.innerHTML = '<option value="">-- Choose DA --</option>';
+            listContainer.innerHTML = '<div style="padding:20px; text-align:center; color:#999;">Select MPO to view items</div>';
+            manualSelections = {};
+            updateCount('manual');
+            return;
+        }
+
+        currentMPO = fMpos.find(m => m.id === id);
         if(!currentMPO) return;
 
         document.getElementById('md-name').innerText = currentMPO.name;
         document.getElementById('md-territory').innerText = currentMPO.territory;
-        document.getElementById('md-depot').innerText = currentMPO.depotId;
+        document.getElementById('md-depot').innerText = currentMPO.depotId || 'N/A';
         details.style.display = 'block';
 
-        daSel.disabled = false; daSel.innerHTML = '<option value="">-- Choose DA --</option>';
-        data.das.filter(d => d.depotId === currentMPO.depotId && d.isActive !== false).forEach(d => daSel.innerHTML += `<option value="${d.id}">${d.name}</option>`);
+        daSel.disabled = false;
+        daSel.innerHTML = '<option value="">-- Choose DA --</option>';
+        const mpoDepotDas = fDas.filter(d => d.depotId === currentMPO.depotId);
+        mpoDepotDas.forEach(d => {
+            const sel = d.id === currentMPO.daId ? 'selected' : '';
+            daSel.innerHTML += `<option value="${d.id}" ${sel}>${d.name}</option>`;
+        });
 
-        listContainer.innerHTML = ''; manualSelections = {};
-        const sourceData = (type === 'gift') ? data.gifts : data.prods;
-        sourceData.filter(p => p.depotId === currentMPO.depotId && p.isActive !== false).forEach(p => {
+        listContainer.innerHTML = '';
+        manualSelections = {};
+        
+        if(type === 'gift') listTitle.innerText = "All Gifts & Quantities";
+        else listTitle.innerText = "All Products & Quantities";
+
+        sourceData.forEach(p => {
+            if (p.isActive === false || p.isActive === 'false') return;
             const div = document.createElement('div');
             div.className = 'product-list-item';
             div.innerHTML = `
-                <div class="product-list-info"><strong>${p.name}</strong><span>ID: ${p.id}</span></div>
-                <input type="number" min="0" class="manual-qty-input" placeholder="0" onchange="window.updateManualSelection('${p.id}', this.value)">`;
+                <div class="product-list-info">
+                    <strong>${p.name}</strong>
+                    <span>ID: ${p.id} | Pack: ${p.pack} | Unit: ${p.unit || '-'}</span>
+                </div>
+                <div style="display:flex; gap:2px; margin-left:auto; font-size:0.7rem; color:#888; background:#eee; padding:2px 4px; border-radius:3px; align-self:center;">
+                    A:${p.qtyA} B:${p.qtyB} C:${p.qtyC}
+                </div>
+                <input type="number" min="0" class="manual-qty-input" placeholder="0" onchange="window.updateManualSelection('${p.id}', this.value)">
+            `;
             listContainer.appendChild(div);
         });
         updateCount('manual');
     };
-    window.updateManualSelection = function(id, qty) { const q = parseInt(qty); if (q > 0) manualSelections[id] = q; else delete manualSelections[id]; updateCount('manual'); };
-    window.resetManualGenerator = function() { document.getElementById('manual-mpo').value = ""; loadManualMPODetails(); };
 
-    // --- CHALLAN GENERATION ---
-    window.generateChallan = function(type) {
-        let itemsArray = [];
-        let sourceData = (type === 'gift') ? data.gifts : data.prods;
-        let selectedSet = (type === 'gift') ? selectedGifts : selectedProducts;
+    window.updateManualSelection = function(prodId, qtyVal) {
+        const qty = parseInt(qtyVal);
+        if (qty && qty > 0) manualSelections[prodId] = qty;
+        else delete manualSelections[prodId];
+        updateCount('manual');
+    };
 
-        if(!currentMPO || selectedSet.size === 0) return;
-        
-        const daId = type === 'gift' ? document.getElementById('gen-da-gift').value : document.getElementById('gen-da').value;
-        const dateObj = new Date();
-        const year = dateObj.getFullYear();
-        const month = ("0" + (dateObj.getMonth() +1)).slice(-2);
-        
-        let depotCode = currentMPO.depotId ? currentMPO.depotId.substring(0, 2).toUpperCase() : "KS";
-        const basePrefix = `${depotCode}${year}${month}`;
-        
-        let maxSerial = 0;
-        data.challans.forEach(c => { 
-            if(c.id && c.id.startsWith(basePrefix)) {
-                const serial = parseInt(c.id.slice(-3));
-                if(!isNaN(serial) && serial > maxSerial) maxSerial = serial;
-            }
-        });
-
-        const newSerial = (maxSerial + 1).toString().padStart(3, '0');
-        const challanNo = `${basePrefix}${newSerial}`;
-        const cat = type === 'gift' ? (currentMPO.categoryGift || 'A') : (currentMPO.categoryProd || currentMPO.category || 'A');
-
-        const items = Array.from(selectedSet).map(pid => {
-            const p = sourceData.find(x => x.id === pid);
-            if(!p) return null;
-            let qty = 0;
-            if(cat === 'A') qty = p.qtyA || 0; else if(cat === 'B') qty = p.qtyB || 0;
-            else if(cat === 'C') qty = p.qtyC || 0; else if(cat === 'D') qty = p.qtyD || 0;
-            else if(cat === 'E') qty = p.qtyE || 0;
-            return { ...p, issueQty: qty };
-        }).filter(i => i);
-
-        const newChallan = {
-            id: challanNo, date: dateObj.toLocaleDateString('en-GB'), timestamp: Date.now(),
-            type: type === 'gift' ? 'Gift' : 'Product',
-            mpoId: currentMPO.id, mpoName: currentMPO.name, mpoTerritory: currentMPO.territory,
-            mpoArea: currentMPO.area || '', mpoRegion: currentMPO.region || '', 
-            mpoCat: cat, mpoSales: currentMPO.sales, daId: daId, items: items,
-            depotId: currentMPO.depotId
-        };
-
-        // Save to Depot Node
-        push(ref(db, `depots/${currentMPO.depotId}/challans`), newChallan).then(() => {
-            showToast("Challan Generated!");
-            if(type === 'gift') { selectedGifts.clear(); updateCount('gift'); } 
-            else { selectedProducts.clear(); updateCount('prod'); }
-            window.nav('challans');
-        }).catch(err => showToast("Error: " + err.message));
+    window.resetManualGenerator = function() {
+        document.getElementById('manual-mpo').value = "";
+        loadManualMPODetails();
     };
 
     window.generateManualChallan = function() {
@@ -1790,416 +2361,687 @@
         const year = dateObj.getFullYear();
         const month = ("0" + (dateObj.getMonth() +1)).slice(-2);
         
-        let depotCode = currentMPO.depotId ? currentMPO.depotId.substring(0, 2).toUpperCase() : "KS";
-        const basePrefix = `${depotCode}${year}${month}`;
+        let depotCode = "KS"; 
+        let assignedDepotId = currentUser.depotId; 
+        
+        if (currentUser.role === 'admin') assignedDepotId = currentMPO.depotId || 'ALL'; 
+        if(assignedDepotId && assignedDepotId !== 'ALL') depotCode = assignedDepotId.substring(0, 2).toUpperCase();
+                const dateCode = `${year}${month}`;
+        const basePrefix = `${depotCode}${dateCode}`;
         
         let maxSerial = 0;
-        data.challans.forEach(c => { 
-            if(c.id && c.id.startsWith(basePrefix)) {
-                const serial = parseInt(c.id.slice(-3));
-                if(!isNaN(serial) && serial > maxSerial) maxSerial = serial;
-            }
-        });
+        if(data.challans) {
+            data.challans.forEach(c => { 
+                if(c.id && c.id.startsWith(basePrefix)) {
+                    const serial = parseInt(c.id.slice(-3));
+                    if(!isNaN(serial) && serial > maxSerial) maxSerial = serial;
+                }
+            });
+        }
 
-        const newSerial = (maxSerial + 1).toString().padStart(3, '0');
-        const challanNo = `${basePrefix}${newSerial}`;
+        const newSerial = maxSerial + 1;
+        const serialStr = newSerial.toString().padStart(3, '0');
+        const challanNo = `${basePrefix}${serialStr}`;
         const cat = currentMPO.categoryProd || currentMPO.category || 'A';
 
         const newChallan = {
-            id: challanNo, date: dateObj.toLocaleDateString('en-GB'), timestamp: Date.now(),
-            type: type === 'gift' ? 'Gift' : 'Product', isManual: true,
-            mpoId: currentMPO.id, mpoName: currentMPO.name, mpoTerritory: currentMPO.territory,
-            mpoArea: currentMPO.area || '', mpoRegion: currentMPO.region || '', 
-            mpoCat: cat, mpoSales: currentMPO.sales, daId: daId, items: itemsArray,
-            depotId: currentMPO.depotId
+            id: challanNo,
+            date: dateObj.toLocaleDateString('en-GB'),
+            timestamp: Date.now(),
+            type: type === 'gift' ? 'Gift' : 'Product',
+            isManual: true,
+            mpoId: currentMPO.id,
+            mpoName: currentMPO.name,
+            mpoTerritory: currentMPO.territory,
+            mpoArea: currentMPO.area || '', 
+            mpoRegion: currentMPO.region || '', 
+            mpoCat: cat,
+            mpoSales: currentMPO.sales,
+            daId: daId,
+            items: itemsArray,
+            depotId: assignedDepotId
         };
 
-        push(ref(db, `depots/${currentMPO.depotId}/challans`), newChallan).then(() => {
-            showToast("Manual Challan Generated!");
-            manualSelections = {}; updateCount('manual');
+        push(ref(db, 'challans'), newChallan).then(() => {
+            showToast("Manual Challan Generated & Saved!");
+            manualSelections = {};
+            updateCount('manual');
             window.nav('challans');
         }).catch(err => showToast("Error: " + err.message));
     };
 
-    window.directToGen = function(type, mpoId, depotId) {
-        // Note: directToGen might cross depots if Admin is viewing All. 
-        // We ensure the MPO data is loaded correctly.
+    window.generateChallan = function(type) {
+        let itemsArray = [];
+        let fProds = data.prods; 
+        let fGifts = data.gifts; 
+
+        if(type === 'prod') {
+            if(!currentMPO || selectedProducts.size === 0) return;
+            itemsArray = Array.from(selectedProducts).map(pid => fProds.find(x => x.id === pid));
+        } else {
+            if(!currentMPO || selectedGifts.size === 0) return;
+            itemsArray = Array.from(selectedGifts).map(pid => fGifts.find(x => x.id === pid));
+        }
+
+        const daId = type === 'gift' ? document.getElementById('gen-da-gift').value : document.getElementById('gen-da').value;
+        const dateObj = new Date();
+        const year = dateObj.getFullYear();
+        const month = ("0" + (dateObj.getMonth() +1)).slice(-2);
+        
+        let depotCode = "KS"; 
+        let assignedDepotId = currentUser.depotId; 
+        
+        if (currentUser.role === 'admin') assignedDepotId = currentMPO.depotId || 'ALL'; 
+        if(assignedDepotId && assignedDepotId !== 'ALL') depotCode = assignedDepotId.substring(0, 2).toUpperCase();
+
+        const dateCode = `${year}${month}`;
+        const basePrefix = `${depotCode}${dateCode}`;
+        
+        let maxSerial = 0;
+        if(data.challans) {
+            data.challans.forEach(c => { 
+                if(c.id && c.id.startsWith(basePrefix)) {
+                    const serial = parseInt(c.id.slice(-3));
+                    if(!isNaN(serial) && serial > maxSerial) maxSerial = serial;
+                }
+            });
+        }
+
+        const newSerial = maxSerial + 1;
+        const serialStr = newSerial.toString().padStart(3, '0');
+        const challanNo = `${basePrefix}${serialStr}`;
+        let cat = '';
+        if(type === 'prod') cat = currentMPO.categoryProd || currentMPO.category || 'A';
+        else cat = currentMPO.categoryGift || 'A';
+
+        const items = itemsArray.map(item => {
+            let qty = 0;
+            if(cat === 'A') qty = item.qtyA || 0;
+            else if(cat === 'B') qty = item.qtyB || 0;
+            else if(cat === 'C') qty = item.qtyC || 0;
+            else if(cat === 'D') qty = item.qtyD || 0;
+            else if(cat === 'E') qty = item.qtyE || 0;
+            else qty = 0;
+            return { ...item, issueQty: qty };
+        });
+
+        const newChallan = {
+            id: challanNo,
+            date: dateObj.toLocaleDateString('en-GB'),
+            timestamp: Date.now(),
+            type: type === 'gift' ? 'Gift' : 'Product',
+            mpoId: currentMPO.id,
+            mpoName: currentMPO.name,
+            mpoTerritory: currentMPO.territory,
+            mpoArea: currentMPO.area || '', 
+            mpoRegion: currentMPO.region || '', 
+            mpoCat: cat,
+            mpoSales: currentMPO.sales,
+            daId: daId,
+            items: items,
+            depotId: assignedDepotId
+        };
+
+        push(ref(db, 'challans'), newChallan).then(() => {
+            showToast("Challan Generated & Saved!");
+            if(type === 'gift') { selectedGifts.clear(); updateCount('gift'); } 
+            else { selectedProducts.clear(); updateCount('prod'); }
+            window.nav('challans');
+        }).catch(err => showToast("Error: " + err.message));
+    };
+
+    window.directToGen = function(type, mpoId) {
+        selectedMpoForDialog = mpoId;
         const targetId = type === 'prod' ? 'generator' : 'giftGenerator';
-        window.nav(targetId);
+        document.querySelectorAll('.section').forEach(el => { el.classList.remove('active'); el.style.display = 'none'; });
+        const targetSection = document.getElementById(targetId);
+        if (targetSection) { targetSection.classList.add('active'); targetSection.style.display = 'block'; }
+        
+        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(b => { 
+            if(b.getAttribute('onclick') && b.getAttribute('onclick').includes(`'${targetId}'`)) b.classList.add('active'); 
+        });
+        
+        window.scrollTo(0, 0);
         
         setTimeout(() => {
             const mpoSelect = document.getElementById(type==='prod'?'gen-mpo':'gen-mpo-gift');
             if(mpoSelect) {
-                mpoSelect.value = mpoId;
+                mpoSelect.value = selectedMpoForDialog;
                 if(type==='prod') loadMPODetails(); else loadGiftMPODetails();
             }
         }, 50);
     };
 
-    // --- HAND OVER ---
-    function getItemClosingStock(item) {
-        const currentMonth = new Date().toISOString().slice(0, 7);
-        let used = 0;
-        // Challans
-        data.challans.filter(c => new Date(c.timestamp).toISOString().slice(0, 7) === currentMonth).forEach(c => {
-            c.items.forEach(i => { if(i.id === item.id) used += parseInt(i.issueQty || 0); });
-        });
-        // Handovers
-        data.handovers.filter(c => new Date(c.timestamp).toISOString().slice(0, 7) === currentMonth).forEach(c => {
-            c.items.forEach(i => { if(i.id === item.id) used += parseInt(i.issueQty || 0); });
-        });
-        return (Number(item.openingStock || 0) + Number(item.receivedThisMonth || 0)) - used;
+    window.clearChallanFilters = function() {
+        document.getElementById('filter-date').value = "";
+        document.getElementById('filter-depot').value = "";
+        document.getElementById('filter-type').value = ""; 
+        document.getElementById('filter-category').value = "";
+        document.getElementById('filter-mpo').value = "";
+        document.getElementById('filter-challan-no').value = "";
+        window.renderChallans();
     }
 
-    window.loadHandOverItems = function() {
-        const container = document.getElementById('ho-product-list-container');
-        container.innerHTML = ''; handOverSelections = {}; updateCount('handover');
-        [...data.prods, ...data.gifts].filter(p => p.isActive !== false).forEach(p => {
-            const closing = getItemClosingStock(p);
-            const div = document.createElement('div');
-            div.className = 'product-list-item';
-            div.innerHTML = `
-                <div class="product-list-info"><strong>${p.name} (${p.id})</strong></div>
-                <div style="font-weight:bold; color:var(--teal); margin-right:10px;">Closing: ${closing}</div>
-                <input type="number" min="0" class="manual-qty-input" placeholder="0" max="${closing}" onchange="window.updateHandOverSelection('${p.id}', this.value, '${data.prods.includes(p) ? 'prod' : 'gift'}')">`;
-            container.appendChild(div);
-        });
-    };
-
-    window.updateHandOverSelection = function(id, qty, type) {
-        const q = parseInt(qty);
-        if (q && q > 0) handOverSelections[id] = { qty: q, type: type }; else delete handOverSelections[id];
-        updateCount('handover');
-    };
-
-    window.generateHandOverChallan = function() {
-        const toArea = document.getElementById('ho-to-area').value;
-        const fromDepot = document.getElementById('ho-from-depot').value;
-        
-        if(!toArea) return showToast("Please select a destination.");
-        if(Object.keys(handOverSelections).length === 0) return showToast("Please add items.");
-
-        const itemsArray = [];
-        for (const [pid, val] of Object.entries(handOverSelections)) {
-            const sourceData = (val.type === 'gift') ? data.gifts : data.prods;
-            const p = sourceData.find(x => x.id === pid);
-            if(p) itemsArray.push({ ...p, issueQty: val.qty });
+    window.viewChallanDetails = function(key) {
+        let c = data.challans.find(x => x.key === key);
+        let isHandover = false;
+        if(!c) {
+            c = data.handovers.find(x => x.key === key);
+            isHandover = true;
         }
-
-        const dateObj = new Date();
-        const year = dateObj.getFullYear();
-        const month = ("0" + (dateObj.getMonth() +1)).slice(-2);
-        
-        // Determine Depot
-        let assignedDepotId = currentUser.depotId;
-        if (currentUser.role === 'admin') assignedDepotId = currentDepotFilter === 'ALL' ? 'HQ' : currentDepotFilter;
-        let depotCode = assignedDepotId ? assignedDepotId.substring(0, 2).toUpperCase() : "HO";
-
-        const basePrefix = `HO-${year}${month}`;
-        let maxSerial = 0;
-        data.handovers.forEach(c => { 
-            if(c.id && c.id.startsWith(basePrefix)) {
-                const serial = parseInt(c.id.slice(-4)); // HO uses 4 digit padding
-                if(!isNaN(serial) && serial > maxSerial) maxSerial = serial;
-            }
-        });
-        const challanNo = `${basePrefix}-${(maxSerial + 1).toString().padStart(4, '0')}`;
-
-        const newChallan = {
-            id: challanNo, date: dateObj.toLocaleDateString('en-GB'), timestamp: Date.now(),
-            type: 'Hand Over', from: fromDepot, to: toArea, items: itemsArray,
-            depotId: assignedDepotId
-        };
-
-        push(ref(db, `depots/${assignedDepotId}/handovers`), newChallan).then(() => {
-            showToast("Hand Over Generated!");
-            window.printHandOverChallan(newChallan);
-            handOverSelections = {}; window.loadHandOverItems();
-        }).catch(err => showToast("Error: " + err.message));
-    };
-
-    window.printHandOverChallan = function(c) {
-        document.getElementById('print-area').style.display = 'none'; document.getElementById('print-stock-area').style.display = 'none';
-        document.getElementById('print-handover-area').style.display = 'block';
-        document.getElementById('ho-p-no').innerText = c.id; document.getElementById('ho-p-date').innerText = c.date;
-        document.getElementById('ho-p-from').innerText = c.from; document.getElementById('ho-p-to').innerText = c.to;
-        const tbody = document.getElementById('ho-p-items'); tbody.innerHTML = ''; let total = 0;
-        c.items.forEach(item => { total += parseInt(item.issueQty || 0); tbody.innerHTML += `<tr><td style="text-align:center">${item.id}</td><td>${item.name}</td><td style="text-align:center">${item.pack}</td><td style="text-align:center">${item.issueQty}</td><td style="text-align:center">${item.unit || '-'}</td></tr>`; });
-        document.getElementById('ho-p-total').innerText = `${total} pcs`;
-        window.print();
-    };
-
-    // --- CHALLAN HISTORY ---
-    window.renderChallans = function() {
-        const list = [...data.challans, ...data.handovers].sort((a, b) => b.timestamp - a.timestamp);
-        // Filters
-        const dateFilter = document.getElementById('filter-date').value;
-        const typeFilter = document.getElementById('filter-type').value;
-        const catFilter = document.getElementById('filter-category').value;
-        const mpoFilter = document.getElementById('filter-mpo').value;
-        const searchFilter = document.getElementById('filter-challan-no').value.trim().toLowerCase();
-        const viewMode = document.getElementById('view-mode').value;
-
-        const filtered = list.filter(c => {
-            if(dateFilter && new Date(c.timestamp).toISOString().split('T')[0] !== dateFilter) return false;
-            if(typeFilter) {
-                if (typeFilter === 'Manual' && !c.isManual) return false;
-                if (typeFilter === 'Hand Over' && c.type !== 'Hand Over') return false;
-                if (!['Manual', 'Hand Over'].includes(typeFilter) && (c.isManual || c.type !== typeFilter)) return false;
-            }
-            if(catFilter && c.mpoCat !== catFilter) return false;
-            if(mpoFilter && c.mpoId !== mpoFilter) return false;
-            if(searchFilter && !c.id.toLowerCase().includes(searchFilter)) return false;
-            return true;
-        });
-
-        document.getElementById('challan-count-badge').innerText = `(Total: ${filtered.length})`;
-        const contentArea = document.getElementById('challan-content-area');
-        const noMsg = document.getElementById('no-challan-msg');
-        
-        if (filtered.length === 0) { contentArea.innerHTML = ''; noMsg.style.display = 'block'; }
-        else {
-            noMsg.style.display = 'none';
-            if (viewMode === 'list') {
-                let html = `<div class="table-responsive"><table><thead><tr><th>Type</th><th>No</th><th>Date</th><th>MPO/To</th><th>Area</th><th>Items</th><th>Actions</th></tr></thead><tbody>`;
-                filtered.forEach(c => {
-                    let typeBadge = c.type === 'Hand Over' ? '<span style="background:var(--teal); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Hand Over</span>' :
-                                    c.isManual ? '<span style="background:var(--warning); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Manual</span>' :
-                                    c.type === 'Gift' ? '<span style="background:var(--purple); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Gift</span>' :
-                                    '<span style="background:var(--accent); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Prod</span>';
-                    html += `<tr><td>${typeBadge}</td><td style="font-family:monospace; font-weight:bold;">${c.id}</td><td>${c.date}</td><td>${c.mpoName || c.to}</td><td>${c.mpoArea || c.from || '-'}</td><td style="text-align:center">${c.items.length}</td><td>
-                        <button class="btn btn-sm btn-secondary" onclick="window.viewChallanDetails('${c.key}', '${c.type}')"><i class="fa-solid fa-eye"></i></button>
-                        <button class="btn btn-sm btn-primary" onclick="window.printChallan('${c.key}', '${c.type}')"><i class="fa-solid fa-print"></i></button>
-                        <button class="btn btn-sm btn-danger" onclick="window.deleteChallan('${c.key}', '${c.type}', '${c.depotId}')"><i class="fa-solid fa-trash"></i></button>
-                    </td></tr>`;
-                });
-                html += `</tbody></table></div>`;
-                contentArea.innerHTML = html;
-            } else {
-                // Month Wise (Simplified for brevity, same logic as before but using filtered array)
-                const grouped = {};
-                filtered.forEach(c => {
-                    const m = new Date(c.timestamp).toLocaleString('en-GB', { month: 'long', year: 'numeric' });
-                    if(!grouped[m]) grouped[m] = [];
-                    grouped[m].push(c);
-                });
-                let html = '';
-                Object.keys(grouped).sort((a,b) => new Date(b) - new Date(a)).forEach(month => {
-                     html += `<div class="month-group"><div class="month-header"><h4>${month}</h4><span class="month-count">${grouped[month].length}</span></div>
-                     <div class="table-responsive"><table><thead><tr><th>Type</th><th>No</th><th>Date</th><th>MPO/To</th><th>Area</th><th>Items</th><th>Actions</th></tr></thead><tbody>`;
-                     grouped[month].forEach(c => {
-                        let typeBadge = c.type === 'Hand Over' ? '<span style="background:var(--teal); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Hand Over</span>' :
-                                    c.isManual ? '<span style="background:var(--warning); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Manual</span>' :
-                                    c.type === 'Gift' ? '<span style="background:var(--purple); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Gift</span>' :
-                                    '<span style="background:var(--accent); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Prod</span>';
-                        html += `<tr><td>${typeBadge}</td><td style="font-family:monospace; font-weight:bold;">${c.id}</td><td>${c.date}</td><td>${c.mpoName || c.to}</td><td>${c.mpoArea || c.from || '-'}</td><td style="text-align:center">${c.items.length}</td><td>
-                        <button class="btn btn-sm btn-secondary" onclick="window.viewChallanDetails('${c.key}', '${c.type}')"><i class="fa-solid fa-eye"></i></button>
-                        <button class="btn btn-sm btn-primary" onclick="window.printChallan('${c.key}', '${c.type}')"><i class="fa-solid fa-print"></i></button>
-                        <button class="btn btn-sm btn-danger" onclick="window.deleteChallan('${c.key}', '${c.type}', '${c.depotId}')"><i class="fa-solid fa-trash"></i></button>
-                    </td></tr>`;
-                     });
-                     html += `</tbody></table></div></div>`;
-                });
-                contentArea.innerHTML = html;
-            }
-        }
-    };
-
-    window.viewChallanDetails = function(key, type) {
-        let c = type === 'Hand Over' ? data.handovers.find(x => x.key === key) : data.challans.find(x => x.key === key);
         if(!c) return;
+
         const da = data.das.find(d => d.id === c.daId) || {name: 'N/A'};
         
-        document.getElementById('vc-mpo-name').innerText = c.mpoName || c.to;
-        document.getElementById('vc-mpo-id').innerText = c.mpoId || '-';
-        document.getElementById('vc-territory').innerText = c.mpoTerritory || `From: ${c.from}`;
-        document.getElementById('vc-da-name').innerText = da.name;
+        document.getElementById('vc-mpo-name').innerText = isHandover ? c.to : c.mpoName;
+        document.getElementById('vc-mpo-id').innerText = isHandover ? '-' : c.mpoId;
+        document.getElementById('vc-territory').innerText = isHandover ? `From: ${c.from}` : c.mpoTerritory;
+        document.getElementById('vc-da-name').innerText = isHandover ? '-' : da.name;
         document.getElementById('vc-date').innerText = c.date;
         document.getElementById('vc-type').innerText = c.type + (c.isManual ? " (Manual)" : "");
-        const tbody = document.getElementById('vc-items-body'); tbody.innerHTML = '';
-        c.items.forEach(item => tbody.innerHTML += `<tr><td>${item.id}</td><td>${item.name}</td><td>${item.pack}</td><td style="text-align:right">${item.issueQty}</td><td>${item.unit}</td></tr>`);
-        
-        document.getElementById('vc-print-btn').onclick = function() {
+
+        const tbody = document.getElementById('vc-items-body');
+        tbody.innerHTML = '';
+        c.items.forEach(item => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${item.id}</td>
+                    <td>${item.name}</td>
+                    <td>${item.pack}</td>
+                    <td style="text-align:right">${item.issueQty}</td>
+                    <td>${item.unit}</td>
+                </            </tr>
+            `;
+        });
+
+        const printBtn = document.getElementById('vc-print-btn');
+        printBtn.onclick = function() {
             document.getElementById('view-challan-modal').style.display = 'none';
-            if(type === 'Hand Over') window.printHandOverChallan(c); else window.printChallan(key, type);
+            if(isHandover) window.printHandOverChallan(c);
+            else window.printChallan(key, c.type);
         };
+
+        const deleteBtn = document.getElementById('vc-delete-btn');
+        // Permission Check for Delete Button
+        if(window.hasDeletePermission()) {
+            deleteBtn.style.display = 'inline-flex';
+            deleteBtn.onclick = function() {
+                 window.deleteChallan(key, c.type);
+                 document.getElementById('view-challan-modal').style.display = 'none';
+            };
+        } else {
+            deleteBtn.style.display = 'none';
+        }
+
         document.getElementById('view-challan-modal').style.display = 'flex';
     };
 
     window.printChallan = function(key, type) {
         const c = data.challans.find(x => x.key === key);
         if(!c) return;
-        const da = data.das.find(d => d.id === c.daId) || {name: 'N/A', id: 'N/A'};
         
-        document.getElementById('print-stock-area').style.display = 'none'; document.getElementById('print-handover-area').style.display = 'none';
+        document.documentElement.style.setProperty('--print-font-family', "'Epson Roman', 'Epson Roman T', 'Times New Roman', serif");
+        document.documentElement.style.setProperty('--print-font-size', "10.5pt");
+
+        const da = data.das.find(d => d.id === c.daId) || {name: 'N/A', id: 'N/A'};
+        const depot = c.depotId || 'HQ';
+
+        document.getElementById('print-stock-area').style.display = 'none';
+        document.getElementById('print-handover-area').style.display = 'none';
         document.getElementById('print-area').style.display = 'block';
 
-        document.getElementById('p-mpo-id').innerText = c.mpoId; document.getElementById('p-mpo-name').innerText = c.mpoName;
-        document.getElementById('p-territory').innerText = c.mpoTerritory; document.getElementById('p-area').innerText = c.mpoArea || '-';
-        document.getElementById('p-depot').innerText = c.depotId; document.getElementById('p-region').innerText = c.mpoRegion || '-';
-        document.getElementById('p-da-name').innerText = da.name; document.getElementById('p-da-id').innerText = da.id;
-        document.getElementById('p-ch-no').innerText = c.id; document.getElementById('p-date').innerText = c.date;
+        document.getElementById('p-mpo-id').innerText = c.mpoId;
+        document.getElementById('p-mpo-name').innerText = c.mpoName;
+        document.getElementById('p-territory').innerText = c.mpoTerritory;
+        document.getElementById('p-area').innerText = c.mpoArea || '-';
+        document.getElementById('p-depot').innerText = depot;
+        document.getElementById('p-region').innerText = c.mpoRegion || '-';
+        
+        document.getElementById('p-da-name').innerText = da.name;
+        document.getElementById('p-da-id').innerText = da.id;
+        document.getElementById('p-ch-no').innerText = c.id;
+        document.getElementById('p-date').innerText = c.date;
         document.getElementById('p-tp-sales').innerText = c.mpoSales ? Number(c.mpoSales).toLocaleString() : '0';
         document.getElementById('p-cat').innerText = c.mpoCat || '-';
 
-        const tbody = document.getElementById('p-table-body'); tbody.innerHTML = ''; let totalQty = 0;
+        const tbody = document.getElementById('p-table-body');
+        tbody.innerHTML = '';
+        let totalQty = 0;
         c.items.forEach((item, index) => {
             totalQty += parseInt(item.issueQty || 0);
             tbody.innerHTML += `<tr><td style="text-align:center">${index+1}</td><td>${item.id}</td><td>${item.name}</td><td>${item.pack}</td><td style="text-align:center">${item.issueQty}</td><td style="text-align:center">${item.unit}</td></tr>`;
         });
         document.getElementById('p-total-qty').innerText = totalQty;
+        
         window.print();
     };
 
-    window.deleteChallan = function(key, type, depotId) {
-        if(!confirm('Delete this record?')) return;
-        let path = type === 'Hand Over' ? `depots/${depotId}/handovers/${key}` : `depots/${depotId}/challans/${key}`;
-        remove(ref(db, path)).then(() => showToast("Deleted"));
-    };
-    
-    window.clearChallanFilters = function() {
-        document.getElementById('filter-date').value = ""; document.getElementById('filter-type').value = ""; 
-        document.getElementById('filter-category').value = ""; document.getElementById('filter-mpo').value = "";
-        document.getElementById('filter-challan-no').value = ""; window.renderChallans();
+    // UPDATED: Challan History with Grand Total (CC) and Delete Permission
+    window.renderChallans = function(fChallans, fMpos) {
+        if (!fChallans) fChallans = getFilteredData(data.challans);
+        if (!fMpos) fMpos = getFilteredData(data.mpos);
+
+        let availableDepots = new Set();
+        if(fMpos) fMpos.forEach(m => { if(m.depotId) availableDepots.add(m.depotId); });
+        if(fChallans) fChallans.forEach(c => { if(c.depotId) availableDepots.add(c.depotId); });
+
+        const depotSel = document.getElementById('filter-depot');
+        const currentDepotVal = depotSel.value;
+        depotSel.innerHTML = '<option value="">All Depots</option>';
+        Array.from(availableDepots).sort().forEach(depot => depotSel.innerHTML += `<option value="${depot}">${depot}</option>`);
+        depotSel.value = currentDepotVal;
+
+        let availableMpos = fMpos;
+        if (depotSel.value) availableMpos = fMpos.filter(m => m.depotId === depotSel.value);
+
+        const mpoSel = document.getElementById('filter-mpo');
+        const currentMpoVal = mpoSel.value;
+        mpoSel.innerHTML = '<option value="">All MPOs</option>';
+        if (availableMpos && availableMpos.length) {
+            availableMpos.forEach(m => mpoSel.innerHTML += `<option value="${m.id}">${m.name}</option>`);
+        }
+        const optionExists = Array.from(mpoSel.options).some(o => o.value === currentMpoVal);
+        mpoSel.value = optionExists ? currentMpoVal : "";
+
+        const mpoFilter = document.getElementById('filter-mpo').value;
+        const depotFilter = document.getElementById('filter-depot').value;
+        const challanFilter = document.getElementById('filter-challan-no').value.trim().toLowerCase();
+        const categoryFilter = document.getElementById('filter-category').value;
+        const viewMode = document.getElementById('view-mode').value;
+        const dateFilter = document.getElementById('filter-date').value;
+        
+        const typeFilter = document.getElementById('filter-type').value;
+
+        let allRecords = [...fChallans, ...data.handovers.filter(h => {
+            if(currentUser.role !== 'admin' && h.depotId !== currentUser.depotId) return false;
+            return true;
+        })];
+
+        const list = allRecords.filter(c => {
+            const matchesMPO = !mpoFilter || c.mpoId === mpoFilter;
+            const matchesDepot = !depotFilter || c.depotId === depotFilter;
+            const matchesChallan = !challanFilter || c.id.toLowerCase().includes(challanFilter);
+            const matchesCategory = !categoryFilter || c.mpoCat === categoryFilter;
+            
+            let matchesDate = true;
+            if(dateFilter) {
+                const cDate = new Date(c.timestamp);
+                const cDateStr = cDate.toISOString().split('T')[0];
+                if (cDateStr !== dateFilter) matchesDate = false;
+            }
+
+            let matchesType = true;
+            if (typeFilter) {
+                if (typeFilter === 'Manual') matchesType = c.isManual === true;
+                else if (typeFilter === 'Hand Over') matchesType = c.type === 'Hand Over';
+                else matchesType = !c.isManual && c.type === typeFilter;
+            }
+
+            return matchesMPO && matchesDepot && matchesChallan && matchesCategory && matchesDate && matchesType;
+        }).sort((a, b) => {
+            const areaA = (a.mpoArea || a.to || '').toLowerCase();
+            const areaB = (b.mpoArea || b.to || '').toLowerCase();
+            if (areaA < areaB) return -1;
+            if (areaA > areaB) return 1;
+            return b.timestamp - a.timestamp;
+        });
+
+        document.getElementById('challan-count-badge').innerText = `(Total: ${list.length})`;
+
+        const contentArea = document.getElementById('challan-content-area');
+        const noMsg = document.getElementById('no-challan-msg');
+        
+        // Check Delete Permission Once
+        const canDelete = window.hasDeletePermission();
+
+        if (list.length === 0) {
+            contentArea.innerHTML = '';
+            noMsg.style.display = 'block';
+        } else {
+            noMsg.style.display = 'none';
+
+            // Helper to generate table rows
+            const generateTableRows = (challanList) => {
+                let rows = '';
+                challanList.forEach(c => {
+                    let typeBadge = '';
+                    let displayName = c.mpoName || '-';
+                    let displayArea = c.mpoArea || '-';
+                    
+                    if (c.type === 'Hand Over') {
+                        typeBadge = '<span style="background:var(--teal); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Hand Over</span>';
+                        displayName = `To: ${c.to}`;
+                        displayArea = `From: ${c.from}`;
+                    } else if(c.isManual) {
+                        typeBadge = '<span style="background:var(--warning); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Manual</span>';
+                    } else if (c.type === 'Gift') {
+                        typeBadge = '<span style="background:var(--purple); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Gift</span>';
+                    } else {
+                        typeBadge = '<span style="background:var(--accent); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Prod</span>';
+                    }
+
+                    const grandTotal = c.items.reduce((sum, item) => sum + (parseInt(item.issueQty) || 0), 0);
+                    
+                    // Delete Button Logic
+                    let deleteBtnHtml = '';
+                    if(canDelete) {
+                        deleteBtnHtml = `<button class="btn btn-sm btn-danger" onclick="window.deleteChallan('${c.key}', '${c.type}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
+                    }
+                    
+                    rows += `
+                        <tr>
+                            <td>${typeBadge}</td>
+                            <td style="font-family:monospace; font-weight:bold;">${c.id}</td>
+                            <td>${c.date}</td>
+                            <td>${displayName}</td>
+                            <td>${displayArea}</td>
+                            <td style="text-align:center">${c.items.length}</td>
+                            <td style="text-align:center; font-weight:bold; color:var(--accent);">${grandTotal}</td>
+                            <td>
+                                <button class="btn btn-sm btn-secondary" onclick="window.viewChallanDetails('${c.key}')" title="View Items"><i class="fa-solid fa-eye"></i></button>
+                                <button class="btn btn-sm btn-primary" onclick="window.printChallan('${c.key}', '${c.type}')" title="Print"><i class="fa-solid fa-print"></i></button>
+                                ${deleteBtnHtml}
+                            </td>
+                        </tr>`;
+                });
+                return rows;
+            };
+
+            if (viewMode === 'list') {
+                let html = `
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th width="80">Type</th>
+                                    <th>Challan No</th>
+                                    <th>Date</th>
+                                    <th>MPO / To</th>
+                                    <th>Area</th>
+                                    <th width="60">Items</th>
+                                    <th width="80">Grand Total (CC)</th>
+                                    <th width="200">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                
+                html += generateTableRows(list);
+                html += `</tbody></table></div>`;
+                contentArea.innerHTML = html;
+
+            } else {
+                // MONTH WISE VIEW
+                const groupedByMonth = {};
+                list.forEach(c => {
+                    const dateObj = new Date(c.timestamp);
+                    const monthKey = dateObj.toLocaleString('en-GB', { month: 'long', year: 'numeric' }); 
+                    if (!groupedByMonth[monthKey]) groupedByMonth[monthKey] = [];
+                    groupedByMonth[monthKey].push(c);
+                });
+
+                const sortedMonths = Object.keys(groupedByMonth).sort((a,b) => {
+                    const d1 = new Date(a); 
+                    const d2 = new Date(b);
+                    return d2 - d1; 
+                });
+
+                let html = '';
+                sortedMonths.forEach(month => {
+                    const monthChallans = groupedByMonth[month];
+                    html += `
+                        <div class="month-group">
+                            <div class="month-header">
+                                <h4>${month}</h4>
+                                <span class="month-count">${monthChallans.length} Challans</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th width="80">Type</th>
+                                            <th>Challan No</th>
+                                            <th>Date</th>
+                                            <th>MPO / To</th>
+                                            <th>Area</th>
+                                            <th width="60">Items</th>
+                                            <th width="80">Grand Total (CC)</th>
+                                            <th width="200">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>`;
+                    
+                    html += generateTableRows(monthChallans);
+                    html += `</tbody></table></div></div>`;
+                });
+                contentArea.innerHTML = html;
+            }
+        }
     };
 
-    // --- STATUS TOGGLE FUNCTION ---
-    window.toggleStatus = function(type, id) {
-        let item;
-        let path;
+    window.deleteChallan = function(key, type) {
+        if(!window.hasDeletePermission()) {
+            return showToast("Permission Denied: You cannot delete records.");
+        }
         
-        if (type === 'mpo') {
-            item = data.mpos.find(m => m.id === id);
-            if(item) path = `depots/${item.depotId}/mpos/${id}`;
-        } else if (type === 'prod') {
-            item = data.prods.find(p => p.id === id);
-            if(item) path = `depots/${item.depotId}/products/${id}`;
-        } else if (type === 'gift') {
-            item = data.gifts.find(g => g.id === id);
-            if(item) path = `depots/${item.depotId}/gifts/${id}`;
-        } else if (type === 'da') {
-            item = data.das.find(d => d.id === id);
-            if(item) path = `depots/${item.depotId}/das/${id}`;
+        if(!confirm('Delete this record?')) return;
+        
+        let path = '';
+        if (type === 'Hand Over') path = 'handovers/' + key;
+        else path = 'challans/' + key;
+
+        remove(ref(db, path)).then(() => showToast("Record Deleted"));
+    };
+
+    // MANAGEMENT TABLES RENDERING
+    window.renderMgmtTables = function(fMpos, fProds, fGifts, fDas, fUsers) {
+        if (!fMpos) fMpos = getFilteredData(data.mpos);
+        if (!fProds) fProds = data.prods; 
+        if (!fGifts) fGifts = data.gifts;
+        if (!fDas) fDas = getFilteredData(data.das);
+        if (!fUsers) fUsers = currentUser.role === 'admin' ? data.users : [];
+        
+        const canDelete = window.hasDeletePermission();
+
+        // MPO Area Filter Logic
+        const areaSelect = document.getElementById('filter-mpo-area');
+        const currentAreaSelection = areaSelect.value;
+        const uniqueAreas = new Set();
+        fMpos.forEach(m => { if (m.area && m.area.trim() !== "") uniqueAreas.add(m.area.trim()); });
+        let areaOptionsHtml = '<option value="">All Areas</option>';
+        Array.from(uniqueAreas).sort().forEach(area => {
+            const selected = area === currentAreaSelection ? 'selected' : '';
+            areaOptionsHtml += `<option value="${area}" ${selected}>${area}</option>`;
+        });
+        areaSelect.innerHTML = areaOptionsHtml;
+
+        let filteredMpos = fMpos;
+        if (areaSelect.value !== "") filteredMpos = fMpos.filter(m => m.area === areaSelect.value);
+
+        // MPO Search
+        const mpoSearchInput = document.getElementById('search-mpo');
+        if (mpoSearchInput) {
+            const searchVal = mpoSearchInput.value.toLowerCase();
+            if (searchVal) {
+                filteredMpos = filteredMpos.filter(m => 
+                    (m.name && m.name.toLowerCase().includes(searchVal)) || 
+                    (m.id && m.id.toLowerCase().includes(searchVal))
+                );
+            }
+        }
+        filteredMpos.sort((a, b) => (a.area || '').toLowerCase().localeCompare((b.area || '').toLowerCase()));
+
+        // Render MPO Table
+        const mpoT = document.getElementById('table-mpo');
+        mpoT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Territory</th><th>Area</th><th>TP Sales</th><th>Cat(Prod)</th><th>Cat(Gift)</th><th>Status</th><th>Depot</th><th>Actions</th></tr></thead>`;
+        filteredMpos.forEach(m => {
+            const isMpoActive = (m.isActive !== false);
+            const statusBadge = isMpoActive ? '<span style="color:var(--success); font-weight:bold;">Active</span>' : '<span style="color:var(--danger); font-weight:bold;">Inactive</span>';
+            
+            let actionBtns = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('mpo','${m.id}')"><i class="fa-solid fa-pen"></i></button>`;
+            if(canDelete) {
+                actionBtns += ` <button class="btn btn-sm btn-danger" onclick="window.deleteItem('mpo','${m.id}')"><i class="fa-solid fa-trash"></i></button>`;
+            }
+            
+            mpoT.innerHTML += `
+                <tr>
+                    <td>${m.id}</td><td>${m.name}</td><td>${m.territory}</td><td>${m.area || '-'}</td>
+                    <td>${m.sales || 0}</td><td>${m.categoryProd || m.category || '-'}</td><td>${m.categoryGift || '-'}</td>
+                    <td>${statusBadge}</td><td>${m.depotId || '<span style="color:red">Missing</span>'}</td>
+                    <td>${actionBtns}</td>
+                </tr>`;
+        });
+
+        // DA Filter Logic
+        const daDepotSelect = document.getElementById('filter-da-depot');
+        const currentDaDepotVal = daDepotSelect.value;
+        const uniqueDaDepots = new Set();
+        fDas.forEach(d => { if (d.depotId) uniqueDaDepots.add(d.depotId.trim()); });
+        let daDepotOptionsHtml = '<option value="">All Depots</option>';
+        Array.from(uniqueDaDepots).sort().forEach(depot => {
+            const selected = depot === currentDaDepotVal ? 'selected' : '';
+            daDepotOptionsHtml += `<option value="${depot}" ${selected}>${depot}</option>`;
+        });
+        daDepotSelect.innerHTML = daDepotOptionsHtml;
+        let filteredDas = fDas;
+        if (daDepotSelect.value !== "") filteredDas = fDas.filter(d => d.depotId === daDepotSelect.value);
+        filteredDas.sort((a, b) => (a.depotId || '').toLowerCase().localeCompare((b.depotId || '').toLowerCase()));
+
+        // Render Product Table
+        const prodSearchInput = document.getElementById('search-prod');
+        let filteredProds = fProds;
+        if (prodSearchInput) {
+            const searchVal = prodSearchInput.value.toLowerCase();
+            if (searchVal) filteredProds = filteredProds.filter(p => (p.name && p.name.toLowerCase().includes(searchVal)) || (p.id && p.id.toLowerCase().includes(searchVal)));
         }
 
-        if (!item || !path) return showToast("Error: Item not found");
-
-        const currentStatus = item.isActive !== false; // true if undefined or true
-        const newStatus = !currentStatus;
-
-        update(ref(db, path), { isActive: newStatus })
-            .then(() => showToast(`Status updated to ${newStatus ? 'Active' : 'Inactive'}`))
-            .catch(err => showToast("Error: " + err.message));
-    };
-
-    // --- MANAGEMENT ---
-    window.renderMgmtTables = function() {
-        // MPO
-        const mpoSearch = document.getElementById('search-mpo').value.toLowerCase();
-        const mpoT = document.getElementById('table-mpo');
-        mpoT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Area</th><th>Sales</th><th>Cat(P/G)</th><th>Depot</th><th>Actions</th></tr></thead>`;
-        data.mpos.filter(m => m.name.toLowerCase().includes(mpoSearch) || m.id.toLowerCase().includes(mpoSearch)).forEach(m => {
-            const isActive = m.isActive !== false;
-            const toggleBtnClass = isActive ? 'btn-danger' : 'btn-success';
-            const toggleBtnIcon = isActive ? 'fa-toggle-on' : 'fa-toggle-off';
-            
-            mpoT.innerHTML += `<tr>
-                <td>${m.id}</td><td>${m.name}</td><td>${m.area || '-'}</td><td>${m.sales || 0}</td>
-                <td>${m.categoryProd || '-'}/${m.categoryGift || '-'}</td>
-                <td><span class="badge-depot">${m.depotId || 'N/A'}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-secondary" onclick="window.editItem('mpo','${m.id}')"><i class="fa-solid fa-pen"></i></button> 
-                    <button class="btn btn-sm ${toggleBtnClass}" onclick="window.toggleStatus('mpo','${m.id}')"><i class="fa-solid ${toggleBtnIcon}"></i></button>
-                    <button class="btn btn-sm btn-danger" onclick="window.deleteItem('mpo','${m.id}')"><i class="fa-solid fa-trash"></i></button>
-                </td>
-            </tr>`;
-        });
-
-        // Products
-        const prodSearch = document.getElementById('search-prod').value.toLowerCase();
         const prodT = document.getElementById('table-prod');
-        prodT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Pack</th><th>Unit</th><th>Cat Qty (A/B/C/D/E)</th><th>Depot</th><th>Actions</th></tr></thead>`;
-        data.prods.filter(p => p.name.toLowerCase().includes(prodSearch) || p.id.toLowerCase().includes(prodSearch)).forEach(p => {
-            const isActive = p.isActive !== false;
-            const toggleBtnClass = isActive ? 'btn-danger' : 'btn-success';
-            const toggleBtnIcon = isActive ? 'fa-toggle-on' : 'fa-toggle-off';
+        prodT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Pack</th><th>Status</th><th>A/B/C/D/E</th><th>Depot</th><th>Actions</th></tr></thead>`;
+        
+        filteredProds.forEach(p => {
+            const statusBadge = (p.isActive === false || p.isActive === 'false') ? '<span style="color:red; font-weight:bold;">Inactive</span>' : '<span style="color:var(--success); font-weight:bold;">Active</span>';
+            
+            let actionBtns = `
+                <button class="btn btn-sm btn-cyan" onclick="window.openModal('editCategory','${p.id}')" title="Edit Category"><i class="fa-solid fa-layer-group"></i></button>
+                <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('prod','${p.id}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
+                <button class="btn btn-sm btn-secondary" onclick="window.editItem('prod','${p.id}')"><i class="fa-solid fa-pen"></i></button>`;
+            
+            if(canDelete) {
+                actionBtns += ` <button class="btn btn-sm btn-danger" onclick="window.deleteItem('prod','${p.id}')"><i class="fa-solid fa-trash"></i></button>`;
+            }
 
-            prodT.innerHTML += `<tr>
-                <td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${p.unit}</td>
-                <td><span style="font-size:0.8rem">${p.qtyA || 0}/${p.qtyB || 0}/${p.qtyC || 0}/${p.qtyD || 0}/${p.qtyE || 0}</span></td>
-                <td><span class="badge-depot">${p.depotId}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-cyan" onclick="window.openModal('editCategory','${p.id}')" title="Edit Categories"><i class="fa-solid fa-layer-group"></i></button>
-                    <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('prod','${p.id}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
-                    <button class="btn btn-sm btn-secondary" onclick="window.editItem('prod','${p.id}')"><i class="fa-solid fa-pen"></i></button> 
-                    <button class="btn btn-sm ${toggleBtnClass}" onclick="window.toggleStatus('prod','${p.id}')"><i class="fa-solid ${toggleBtnIcon}"></i></button>
-                    <button class="btn btn-sm btn-danger" onclick="window.deleteItem('prod','${p.id}')"><i class="fa-solid fa-trash"></i></button>
-                </td>
-            </tr>`;
+            prodT.innerHTML += `
+                <tr>
+                    <td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${statusBadge}</td>
+                    <td>${p.qtyA}/${p.qtyB}/${p.qtyC}/${p.qtyD}/${p.qtyE}</td>
+                    <td>${p.depotId || '<span style="color:red">Missing</span>'}</td>
+                    <td>${actionBtns}</td>
+                </tr>`;
         });
 
-        // Gifts
-        const giftSearch = document.getElementById('search-gift').value.toLowerCase();
+        // Render Gift Table
+        const giftSearchInput = document.getElementById('search-gift');
+        let filteredGifts = fGifts;
+        if (giftSearchInput) {
+            const searchVal = giftSearchInput.value.toLowerCase();
+            if (searchVal) filteredGifts = filteredGifts.filter(p => (p.name && p.name.toLowerCase().includes(searchVal)) || (p.id && p.id.toLowerCase().includes(searchVal)));
+        }
+
         const giftT = document.getElementById('table-gift');
-        giftT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Pack</th><th>Unit</th><th>Cat Qty (A/B/C/D/E)</th><th>Depot</th><th>Actions</th></tr></thead>`;
-        data.gifts.filter(p => p.name.toLowerCase().includes(giftSearch) || p.id.toLowerCase().includes(giftSearch)).forEach(p => {
-            const isActive = p.isActive !== false;
-            const toggleBtnClass = isActive ? 'btn-danger' : 'btn-success';
-            const toggleBtnIcon = isActive ? 'fa-toggle-on' : 'fa-toggle-off';
+        giftT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Pack</th><th>Status</th><th>A/B/C/D/E</th><th>Depot</th><th>Actions</th></tr></thead>`;
+        
+        filteredGifts.forEach(p => {
+            const statusBadge = (p.isActive === false || p.isActive === 'false') ? '<span style="color:red; font-weight:bold;">Inactive</span>' : '<span style="color:var(--success); font-weight:bold;">Active</span>';
+            
+            let actionBtns = `
+                <button class="btn btn-sm btn-purple" onclick="window.openModal('editGiftCategory','${p.id}')" title="Edit Category"><i class="fa-solid fa-layer-group"></i></button>
+                <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('gift','${p.id}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
+                <button class="btn btn-sm btn-secondary" onclick="window.editItem('gift','${p.id}')"><i class="fa-solid fa-pen"></i></button>`;
+            
+            if(canDelete) {
+                 actionBtns += ` <button class="btn btn-sm btn-danger" onclick="window.deleteItem('gift','${p.id}')"><i class="fa-solid fa-trash"></i></button>`;
+            }
 
-            giftT.innerHTML += `<tr>
-                <td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${p.unit}</td>
-                <td><span style="font-size:0.8rem">${p.qtyA || 0}/${p.qtyB || 0}/${p.qtyC || 0}/${p.qtyD || 0}/${p.qtyE || 0}</span></td>
-                <td><span class="badge-depot">${p.depotId}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-purple" onclick="window.openModal('editGiftCategory','${p.id}')" title="Edit Categories"><i class="fa-solid fa-layer-group"></i></button>
-                    <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('gift','${p.id}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
-                    <button class="btn btn-sm btn-secondary" onclick="window.editItem('gift','${p.id}')"><i class="fa-solid fa-pen"></i></button> 
-                    <button class="btn btn-sm ${toggleBtnClass}" onclick="window.toggleStatus('gift','${p.id}')"><i class="fa-solid ${toggleBtnIcon}"></i></button>
-                    <button class="btn btn-sm btn-danger" onclick="window.deleteItem('gift','${p.id}')"><i class="fa-solid fa-trash"></i></button>
-                </td>
-            </tr>`;
+            giftT.innerHTML += `
+                <tr>
+                    <td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${statusBadge}</td>
+                    <td>${p.qtyA}/${p.qtyB}/${p.qtyC}/${p.qtyD}/${p.qtyE}</td>
+                    <td>${p.depotId || '<span style="color:red">Missing</span>'}</td>
+                    <td>${actionBtns}</td>
+                </tr>`;
         });
 
-        // DAs
+        // Render DA Table
         const daT = document.getElementById('table-da');
         daT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Depot</th><th>Actions</th></tr></thead>`;
-        data.das.forEach(d => {
-            const isActive = d.isActive !== false;
-            const toggleBtnClass = isActive ? 'btn-danger' : 'btn-success';
-            const toggleBtnIcon = isActive ? 'fa-toggle-on' : 'fa-toggle-off';
-
-            daT.innerHTML += `<tr>
-                <td>${d.id}</td><td>${d.name}</td><td>${d.phone || '-'}</td>
-                <td><span class="badge-depot">${d.depotId}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-secondary" onclick="window.editItem('da','${d.id}')"><i class="fa-solid fa-pen"></i></button> 
-                    <button class="btn btn-sm ${toggleBtnClass}" onclick="window.toggleStatus('da','${d.id}')"><i class="fa-solid ${toggleBtnIcon}"></i></button>
-                    <button class="btn btn-sm btn-danger" onclick="window.deleteItem('da','${d.id}')"><i class="fa-solid fa-trash"></i></button>
-                </td>
-            </tr>`;
+        filteredDas.forEach(d => {
+            let actionBtns = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('da','${d.id}')"><i class="fa-solid fa-pen"></i></button>`;
+            if(canDelete) {
+                 actionBtns += ` <button class="btn btn-sm btn-danger" onclick="window.deleteItem('da','${d.id}')"><i class="fa-solid fa-trash"></i></button>`;
+            }
+            
+            daT.innerHTML += `<tr><td>${d.id}</td><td>${d.name}</td><td>${d.phone || '-'}</td><td>${d.depotId || '<span style="color:red">Missing</span>'}</td>
+            <td>${actionBtns}</td></tr>`;
         });
 
-        // Users
+        // Render Users Table
         if(document.getElementById('table-users')) {
             const userT = document.getElementById('table-users');
             userT.innerHTML = `<thead><tr><th>Username</th><th>Depot ID</th><th>Role</th><th>Actions</th></tr></thead>`;
-            data.users.forEach(u => {
-                userT.innerHTML += `<tr><td>${u.username}</td><td>${u.depotId}</td><td>User</td>
-                <td><button class="btn btn-sm btn-secondary" onclick="window.editItem('user','${u.key}')"><i class="fa-solid fa-pen"></i></button> <button class="btn btn-sm btn-danger" onclick="window.deleteItem('user','${u.key}')"><i class="fa-solid fa-trash"></i></button></td></tr>`;
+            fUsers.forEach(u => {
+                let actionBtns = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('user','${u.key}')"><i class="fa-solid fa-pen"></i></button>`;
+                if(canDelete) {
+                     actionBtns += ` <button class="btn btn-sm btn-danger" onclick="window.deleteItem('user','${u.key}')"><i class="fa-solid fa-trash"></i></button>`;
+                }
+                
+                userT.innerHTML += `<tr><td>${u.username}</td><td>${u.depotId}</td><td><span style="background:var(--secondary); color:white; padding:2px 8px; border-radius:10px; font-size:0.8rem; text-transform:uppercase;">${u.role || 'user'}</span></td>
+                <td>${actionBtns}</td></tr>`;
             });
         }
     };
 
-    // --- MODALS & CRUD ---
+    window.openAddStockModal = function(type, id) {
+        let item;
+        if (type === 'prod') item = data.prods.find(p => p.id === id);
+        else item = data.gifts.find(g => g.id === id);
+        
+        if (!item) return;
+
+        editType = 'addStock' + (type === 'gift' ? 'Gift' : 'Prod');
+        editId = id;
+        document.getElementById('modal').style.display = 'flex';
+        document.getElementById('modal-title').innerText = `Add Stock - ${item.name}`;
+        document.getElementById('modal-form').reset();
+        
+        const closingStock = getItemClosingStock(item);
+
+        const container = document.getElementById('modal-fields');
+        container.innerHTML = `
+            <input type="hidden" name="depotId" value="${item.depotId}">
+            <input type="hidden" name="itemType" value="${type}">
+            <div class="form-group">
+                <label>Item Name</label>
+                <input type="text" value="${item.name}" readonly style="background-color: #f8f9fa; font-weight:bold;">
+            </div>
+            <div class="form-group">
+                <label>Current Closing Stock (Opening + Received - Used)</label>
+                <input type="number" value="${closingStock}" readonly style="background-color: #eaf2f8; font-weight:bold; color:var(--accent); border:2px solid var(--accent);">
+            </div>
+            <div class="form-group">
+                <label style="color:var(--warning);">Stock to Add (This Month)</label>
+                <input type="number" name="stockToAdd" required placeholder="Enter quantity to add" style="border-color:var(--warning);">
+            </div>
+        `;
+    };
+
     window.openModal = function(type, id) {
-        editType = type; editId = id;
+        editType = type;
+        editId = id;
         document.getElementById('modal').style.display = 'flex';
         document.getElementById('modal-form').reset();
         const container = document.getElementById('modal-fields');
         container.innerHTML = '';
 
-        // Helper for Depot Dropdown (Admin Only)
         const depotSelect = () => {
             if(currentUser.role === 'admin') {
                 let html = '<div class="form-group"><label>Depot ID</label><select name="depotId" required onchange="window.updateModalDAOptions(this.value)">';
@@ -2223,7 +3065,8 @@
                     <div class="form-group" style="flex:1"><label style="color:var(--teal)">Cat C</label><input type="number" name="qtyC" value="${p.qtyC || 0}"></div>
                     <div class="form-group" style="flex:1"><label style="color:var(--orange)">Cat D</label><input type="number" name="qtyD" value="${p.qtyD || 0}"></div>
                     <div class="form-group" style="flex:1"><label style="color:var(--pink)">Cat E</label><input type="number" name="qtyE" value="${p.qtyE || 0}"></div>
-                </div>`;
+                </div>
+            `;
             return; 
         }
 
@@ -2234,532 +3077,544 @@
             container.innerHTML = `
                 <input type="hidden" name="depotId" value="${p.depotId}">
                 <div class="form-group"><label>Gift Name</label><input type="text" value="${p.name}" readonly style="background-color: #f8f9fa; font-weight:bold;"></div>
-<div style="display:flex; gap:10px;">
-<div class="form-group" style="flex:1"><label style="color:var(--accent)">Cat A</label><input type="number" name="qtyA" value="${p.qtyA || 0}"></div>
-<div class="form-group" style="flex:1"><label style="color:var(--warning)">Cat B</label><input type="number" name="qtyB" value="${p.qtyB || 0}"></div>
-<div class="form-group" style="flex:1"><label style="color:var(--teal)">Cat C</label><input type="number" name="qtyC" value="${p.qtyC || 0}"></div>
-<div class="form-group" style="flex:1"><label style="color:var(--orange)">Cat D</label><input type="number" name="qtyD" value="${p.qtyD || 0}"></div>
-<div class="form-group" style="flex:1"><label style="color:var(--pink)">Cat E</label><input type="number" name="qtyE" value="${p.qtyE || 0}"></div>
-</div>`;
-return;
-}
-
-if(type === 'mpo') {
-document.getElementById('modal-title').innerText = id ? 'Edit MPO' : 'Add MPO';
-container.innerHTML = `
-${depotSelect()}
-<div class="form-group"><label>MPO ID</label><input name="id" required ${id ? 'readonly style="background:#eee;"' : ''}></div>
-<div class="form-group"><label>Name</label><input name="name" required></div>
-<div class="form-group"><label>Territory</label><input name="territory"></div>
-<div class="form-group"><label>Area</label><input name="area"></div>
-<div class="form-group"><label>Region</label><input name="region"></div>
-<div style="display:flex; gap:10px;">
-<div class="form-group" style="flex:1"><label style="color:var(--accent)">Category (Prod)</label><select name="categoryProd"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div>
-<div class="form-group" style="flex:1"><label style="color:var(--purple)">Category (Gift)</label><select name="categoryGift"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div>
-</div>
-<div class="form-group"><label>TP Sales</label><input type="number" name="sales"></div>
-<div class="form-group"><label>Assign DA</label><select name="daId" id="modal-da-select"><option value="">None</option></select></div>
-`;
-} else if (type === 'da') {
-document.getElementById('modal-title').innerText = id ? 'Edit DA' : 'Add DA';
-container.innerHTML = `
-${depotSelect()}
-<div class="form-group"><label>DA ID</label><input name="id" required ${id ? 'readonly style="background:#eee;"' : ''}></div>
-<div class="form-group"><label>Name</label><input name="name" required></div>
-<div class="form-group"><label>Phone</label><input name="phone"></div>
-`;
-} else if (type === 'prod' || type === 'gift') {
-document.getElementById('modal-title').innerText = id ? `Edit ${type}` : `Add ${type}`;
-container.innerHTML = `
-${depotSelect()}
-<div class="form-group"><label>Unique ID</label><input name="id" required placeholder="e.g. ASL, G01" ${id ? 'readonly style="background:#eee;"' : ''}></div>
-<div class="form-group"><label>Name</label><input name="name" required></div>
-<div class="form-group"><label>Pack Size</label><input name="pack" required></div>
-<div class="form-group"><label>Unit</label><select name="unit"><option>Box</option><option>Pot</option><option>Pcs</option><option>Vial</option></select></div>
-<div style="display:flex; gap:5px">
-<div class="form-group" style="flex:1"><label>Qty A</label><input type="number" name="qtyA" value="0"></div>
-<div class="form-group" style="flex:1"><label>Qty B</label><input type="number" name="qtyB" value="0"></div>
-<div class="form-group" style="flex:1"><label>Qty C</label><input type="number" name="qtyC" value="0"></div>
-<div class="form-group" style="flex:1"><label>Qty D</label><input type="number" name="qtyD" value="0"></div>
-<div class="form-group" style="flex:1"><label>Qty E</label><input type="number" name="qtyE" value="0"></div>
-</div>
-`;
-} else if (type === 'user') {
-document.getElementById('modal-title').innerText = id ? 'Edit User' : 'Add User';
-container.innerHTML = `
-<div class="form-group"><label>Username</label><input name="username" required></div>
-<div class="form-group"><label>Password</label><input name="password" type="password" required></div>
-<div class="form-group"><label>Depot ID</label><input name="depotId" placeholder="e.g. KUS" required></div>
-`;
-}
-};
-
-window.openAddStockModal = function(type, id) {
-let item;
-if (type === 'prod') item = data.prods.find(p => p.id === id);
-else item = data.gifts.find(g => g.id === id);
-
-if (!item) return;
-
-editType = 'addStock' + (type === 'gift' ? 'Gift' : 'Prod');
-editId = id;
-document.getElementById('modal').style.display = 'flex';
-document.getElementById('modal-title').innerText = `Add Stock - ${item.name}`;
-document.getElementById('modal-form').reset();
-
-const closingStock = getItemClosingStock(item);
-const container = document.getElementById('modal-fields');
-container.innerHTML = `
-<input type="hidden" name="depotId" value="${item.depotId}">
-<input type="hidden" name="itemType" value="${type}">
-<div class="form-group">
-<label>Item Name</label>
-<input type="text" value="${item.name}" readonly style="background-color: #f8f9fa; font-weight:bold;">
-</div>
-<div class="form-group">
-<label>Current Closing Stock (Auto Calculated)</label>
-<input type="number" value="${closingStock}" readonly style="background-color: #eaf2f8; font-weight:bold; color:var(--accent); border:2px solid var(--accent);">
-</div>
-<div class="form-group">
-<label style="color:var(--warning);">Stock to Add (This Month)</label>
-<input type="number" name="stockToAdd" required placeholder="Enter quantity to add" style="border-color:var(--warning);">
-</div>
-`;
-};
-
-window.updateModalDAOptions = function(selectedDepotId) {
-const daSelect = document.getElementById('modal-da-select');
-if (!daSelect) return;
-daSelect.innerHTML = '<option value="">None</option>';
-if (selectedDepotId && data.das) {
-data.das.filter(d => d.depotId === selectedDepotId).forEach(d => daSelect.innerHTML += `<option value="${d.id}">${d.name}</option>`);
-}
-};
-
-window.editItem = function(type, id) {
-let item;
-if(type === 'user') item = data.users.find(x => x.key === id);
-else if (type === 'gift') item = data.gifts.find(x => x.id === id);
-else item = (type==='mpo'?data.mpos:type==='da'?data.das:data.prods).find(x => x.id === id);
-
-if(!item) return;
-
-window.openModal(type, id);
-editId = item.key || id;
-
-const form = document.getElementById('modal-form');
-for(let key in item) if(form.elements[key]) form.elements[key].value = item[key];
-
-if(type === 'mpo' && item.depotId) { window.updateModalDAOptions(item.depotId); form.elements['daId'].value = item.daId || ''; }
-if((type === 'prod' || type === 'gift') && item.depotId) form.elements['depotId'].value = item.depotId;
-};
-
-window.deleteItem = function(type, id) {
-if(!confirm('Delete this record?')) return;
-
-let item;
-if(type === 'mpo') item = data.mpos.find(m => m.id === id);
-else if(type === 'da') item = data.das.find(d => d.id === id);
-else if(type === 'prod') item = data.prods.find(p => p.id === id);
-else if(type === 'gift') item = data.gifts.find(g => g.id === id);
-
-if(type === 'user') {
-remove(ref(db, 'users/' + id)).then(() => showToast("User Deleted"));
-return;
-}
-
-if(!item) return;
-
-let path = '';
-if(type === 'mpo') path = `depots/${item.depotId}/mpos/${id}`;
-else if(type === 'da') path = `depots/${item.depotId}/das/${id}`;
-else if(type === 'prod') path = `depots/${item.depotId}/products/${id}`;
-else if(type === 'gift') path = `depots/${item.depotId}/gifts/${id}`;
-
-remove(ref(db, path)).then(() => showToast("Record Deleted"));
-};
-
-window.saveModalData = function(e) {
-e.preventDefault();
-const form = e.target;
-const formData = new FormData(form);
-const obj = {};
-formData.forEach((value, key) => obj[key] = value);
-
-// Handle Category Updates
-if(editType === 'editCategory' || editType === 'editGiftCategory') {
-const depotId = obj.depotId;
-if(!depotId) return showToast("Depot ID missing");
-const updateObj = { qtyA: Number(form.qtyA.value), qtyB: Number(form.qtyB.value), qtyC: Number(form.qtyC.value), qtyD: Number(form.qtyD.value), qtyE: Number(form.qtyE.value) };
-const path = editType === 'editCategory' ? `depots/${depotId}/products/${editId}` : `depots/${depotId}/gifts/${editId}`;
-update(ref(db, path), updateObj).then(() => { showToast("Categories Updated"); closeModal(); }).catch(err => showToast("Error: " + err.message));
-return;
-}
-
-// Handle Add Stock
-if(editType === 'addStockProd' || editType === 'addStockGift') {
-const addedStock = Number(obj.stockToAdd);
-const type = obj.itemType;
-
-let item;
-if (type === 'prod') item = data.prods.find(p => p.id === editId);
-else item = data.gifts.find(g => g.id === editId);
-
-if(!item || addedStock <= 0) return showToast("Invalid input");
-
-const depotId = item.depotId;
-const currentTotal = Number(item.receivedStock || 0);
-const currentMonthly = Number(item.receivedThisMonth || 0);
-
-const updateObj = {
-receivedStock: currentTotal + addedStock,
-receivedThisMonth: currentMonthly + addedStock
-};
-
-const path = type === 'prod' ? `depots/${depotId}/products/${editId}` : `depots/${depotId}/gifts/${editId}`;
-
-update(ref(db, path), updateObj)
-.then(() => { showToast(`Stock Added! Total: ${updateObj.receivedStock}`); closeModal(); })
-.catch(err => showToast("Error: " + err.message));
-return;
-}
-
-// Handle Product/Gift Save
-if(editType === 'prod' || editType === 'gift') {
-const depotId = obj.depotId;
-const customId = obj.id ? String(obj.id).trim() : null;
-if(!depotId || !customId) return showToast("Depot ID and Custom ID are required");
-
-obj.qtyA = Number(obj.qtyA); obj.qtyB = Number(obj.qtyB); obj.qtyC = Number(obj.qtyC); obj.qtyD = Number(obj.qtyD); obj.qtyE = Number(obj.qtyE);
-
-const path = editType === 'prod' ? `depots/${depotId}/products/${customId}` : `depots/${depotId}/gifts/${customId}`;
-set(ref(db, path), obj).then(() => { showToast("Saved Successfully"); closeModal(); }).catch(err => showToast("Error Saving: " + err.message));
-return;
-}
-
-// Handle MPO Save
-if(editType === 'mpo') {
-const depotId = obj.depotId;
-const customId = obj.id;
-if(!depotId || !customId) return showToast("Depot ID and ID are required");
-obj.sales = Number(obj.sales);
-obj.isActive = obj.isActive === 'true';
-
-const path = `depots/${depotId}/mpos/${customId}`;
-set(ref(db, path), obj).then(() => { showToast("MPO Saved"); closeModal(); }).catch(err => showToast("Error: " + err.message));
-return;
-}
-
-// Handle DA Save
-if(editType === 'da') {
-const depotId = obj.depotId;
-const customId = obj.id;
-if(!depotId || !customId) return showToast("Depot ID and ID are required");
-const path = `depots/${depotId}/das/${customId}`;
-set(ref(db, path), obj).then(() => { showToast("DA Saved"); closeModal(); }).catch(err => showToast("Error: " + err.message));
-return;
-}
-
-// Handle User Save
-if(editType === 'user') {
-const path = 'users/' + (editId || Date.now());
-set(ref(db, path), obj).then(() => { showToast("User Saved"); closeModal(); }).catch(err => showToast("Error: " + err.message));
-return;
-}
-};
-
-window.closeModal = function() { document.getElementById('modal').style.display = 'none'; };
-
-// --- EXCEL UPLOAD ---
-let uploadType = null; let parsedExcelData = [];
-
-window.openUploadModal = function(type) {
-uploadType = type;
-document.getElementById('upload-modal').style.display = 'flex';
-document.getElementById('upload-title').innerText = `Upload ${type === 'mpo' ? 'MPOs' : type === 'prod' ? 'Products' : 'Gifts'} from Excel`;
-document.getElementById('excel-file').value = '';
-document.getElementById('upload-status').innerText = '';
-document.getElementById('upload-preview-container').style.display = 'none';
-document.getElementById('btn-confirm-upload').disabled = true;
-parsedExcelData = [];
-};
-
-window.closeUploadModal = function() { document.getElementById('upload-modal').style.display = 'none'; };
-
-document.getElementById('excel-file').addEventListener('change', function(e) {
-const file = e.target.files[0];
-if(!file) return;
-const reader = new FileReader();
-reader.onload = function(e) {
-const data = new Uint8Array(e.target.result);
-const workbook = XLSX.read(data, {type: 'array'});
-const firstSheetName = workbook.SheetNames[0];
-const worksheet = workbook.Sheets[firstSheetName];
-parsedExcelData = XLSX.utils.sheet_to_json(worksheet, {defval:""});
-
-if(parsedExcelData.length === 0) { document.getElementById('upload-status').innerText = "Error: Empty file."; return; }
-
-const table = document.getElementById('upload-preview-table');
-document.getElementById('upload-preview-container').style.display = 'block';
-table.innerHTML = '';
-const headers = Object.keys(parsedExcelData[0]);
-let thead = '<thead><tr>'; headers.forEach(h => thead += `<th>${h}</th>`); thead += '</tr></thead>';
-table.innerHTML += thead;
-let tbody = '<tbody>';
-parsedExcelData.slice(0, 5).forEach((row) => {
-tbody += '<tr>'; headers.forEach(h => tbody += `<td>${row[h]}</td>`); tbody += '</tr>';
-});
-if(parsedExcelData.length > 5) tbody += `<tr><td colspan="${headers.length}" style="text-align:center;">... and ${parsedExcelData.length - 5} more rows ...</td></tr>`;
-tbody += '</tbody>';
-table.innerHTML += tbody;
-
-document.getElementById('upload-status').innerText = `Loaded ${parsedExcelData.length} records. Select destination depot below if needed.`;
-document.getElementById('btn-confirm-upload').disabled = false;
-};
-reader.readAsArrayBuffer(file);
-});
-
-window.confirmExcelUpload = function() {
-if(!uploadType || parsedExcelData.length === 0) return;
-
-// Ask for depot if admin
-let targetDepot = currentUser.depotId;
-if(currentUser.role === 'admin') {
-// In a real app, you might have a dropdown in the modal.
-// Here we assume the admin is filtering the view to the specific depot they want to upload to,
-// OR we use a prompt for simplicity.
-if(currentDepotFilter === 'ALL') {
-targetDepot = prompt("Enter Depot ID to upload data to (e.g. KUS):");
-if(!targetDepot) return showToast("Upload cancelled. Depot ID required.");
-} else {
-targetDepot = currentDepotFilter;
-}
-}
-
-if(!confirm(`Upload ${parsedExcelData.length} records to Depot: ${targetDepot}?`)) return;
-
-document.getElementById('upload-status').innerText = "Uploading...";
-document.getElementById('btn-confirm-upload').disabled = true;
-
-const processUpload = async () => {
-try {
-let count = 0;
-for (const row of parsedExcelData) {
-const id = row['ID'] || row['id'];
-if(!id) continue;
-
-if(uploadType === 'prod') {
-const item = {
-name: row['Name'] || row['name'], pack: row['Pack'] || row['pack'], unit: row['Unit'] || row['unit'],
-qtyA: Number(row['QtyA'] || 0), qtyB: Number(row['QtyB'] || 0), qtyC: Number(row['QtyC'] || 0), qtyD: Number(row['QtyD'] || 0), qtyE: Number(row['QtyE'] || 0),
-receivedStock: Number(row['ReceivedStock'] || 0), receivedThisMonth: 0, openingStock: Number(row['OpeningStock'] || 0),
-depotId: targetDepot, isActive: true, id: id
-};
-await set(ref(db, `depots/${targetDepot}/products/${id}`), item);
-} else if (uploadType === 'gift') {
-const item = {
-name: row['Name'] || row['name'], pack: row['Pack'] || row['pack'], unit: row['Unit'] || row['unit'],
-qtyA: Number(row['QtyA'] || 0), qtyB: Number(row['QtyB'] || 0), qtyC: Number(row['QtyC'] || 0), qtyD: Number(row['QtyD'] || 0), qtyE: Number(row['QtyE'] || 0),
-depotId: targetDepot, isActive: true, id: id
-};
-await set(ref(db, `depots/${targetDepot}/gifts/${id}`), item);
-} else if (uploadType === 'mpo') {
-const item = {
-id: id, name: row['Name'] || row['name'], territory: row['Territory'] || row['territory'], area: row['Area'] || row['area'] || '', region: row['Region'] || row['region'] || '',
-categoryProd: row['CategoryProd'] || row['categoryProd'], categoryGift: row['CategoryGift'] || row['categoryGift'],
-sales: Number(row['Sales'] || 0), depotId: targetDepot, isActive: true
-};
-await set(ref(db, `depots/${targetDepot}/mpos/${id}`), item);
-}
-count++;
-}
-showToast(`Successfully uploaded ${count} records!`);
-window.closeUploadModal();
-} catch (error) {
-console.error(error);
-showToast("Error uploading data.");
-document.getElementById('btn-confirm-upload').disabled = false;
-document.getElementById('upload-status').innerText = "Error occurred.";
-}
-};
-processUpload();
-};
-
-// --- STOCK LOGIC ---
-window.renderStockReport = function() {
-const table = document.getElementById('stock-report-table');
-table.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Pack</th><th>Unit</th><th>Opening</th><th>Received</th><th>Used</th><th>Closing</th></tr></thead>`;
-
-const allItems = [...data.prods, ...data.gifts];
-const currentMonth = new Date().toISOString().slice(0, 7);
-
-let monthlyUsage = {};
-data.challans.filter(c => new Date(c.timestamp).toISOString().slice(0, 7) === currentMonth).forEach(c => {
-c.items.forEach(item => {
-if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
-else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
-});
-});
-data.handovers.filter(c => new Date(c.timestamp).toISOString().slice(0, 7) === currentMonth).forEach(c => {
-c.items.forEach(item => {
-if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
-else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
-});
-});
-
-allItems.forEach(p => {
-const opening = Number(p.openingStock || 0);
-const received = Number(p.receivedThisMonth || 0);
-const used = monthlyUsage[p.id] || 0;
-const closing = opening + received - used;
-
-table.innerHTML += `<tr>
-<td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${p.unit}</td>
-<td>${opening}</td><td>${received}</td><td>${used}</td>
-<td style="font-weight:bold; color:${closing < 0 ? 'red' : 'green'}">${closing}</td>
-</tr>`;
-});
-};
-
-// --- UPDATED Close Month Function ---
-window.closeMonth = function() {
-if(!confirm('Are you sure you want to Close Month? This sets Closing Stock as Opening Stock for next month.')) return;
-
-const currentMonth = new Date().toISOString().slice(0, 7); // e.g. "2023-10"
-let monthlyUsage = {};
-
-// Calculate Total Used for each Item
-data.challans.filter(c => new Date(c.timestamp).toISOString().slice(0, 7) === currentMonth).forEach(c => {
-c.items.forEach(item => {
-if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
-else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
-});
-});
-data.handovers.filter(c => new Date(c.timestamp).toISOString().slice(0, 7) === currentMonth).forEach(c => {
-c.items.forEach(item => {
-if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
-else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
-});
-});
-
-const updates = [];
-const allItems = [...data.prods, ...data.gifts];
-
-allItems.forEach(p => {
-const opening = Number(p.openingStock || 0);
-const received = Number(p.receivedThisMonth || 0);
-const used = monthlyUsage[p.id] || 0;
-const closing = opening + received - used;
-
-// Prepare update for the main item node
-const updateObj = {
-openingStock: closing,
-receivedThisMonth: 0, // Reset for new month
-name: p.name, pack: p.pack, unit: p.unit,
-qtyA: p.qtyA, qtyB: p.qtyB, qtyC: p.qtyC, qtyD: p.qtyD, qtyE: p.qtyE,
-depotId: p.depotId, id: p.id, isActive: p.isActive
-};
-
-// Determine path: products or gifts
-let typePath = data.prods.includes(p) ? 'products' : 'gifts';
-let mainPath = `depots/${p.depotId}/${typePath}/${p.id}`;
-updates.push(update(ref(db, mainPath), updateObj));
-
-// Prepare Archive (History) Save
-// Structure: depots -> KUS -> months -> 2023-10 -> products -> SKL
-const archiveObj = {
-name: p.name, pack: p.pack, unit: p.unit,
-opening: opening,
-received: received,
-used: used,
-closing: closing
-};
-let archivePath = `depots/${p.depotId}/months/${currentMonth}/${typePath}/${p.id}`;
-updates.push(set(ref(db, archivePath), archiveObj));
-});
-
-Promise.all(updates).then(() => {
-showToast("Month Closed & Archived Successfully!");
-}).catch(err => showToast("Error: " + err.message));
-};
-
-window.exportStockToExcel = function() {
-const currentMonth = new Date().toISOString().slice(0, 7);
-let monthlyUsage = {};
-data.challans.filter(c => new Date(c.timestamp).toISOString().slice(0, 7) === currentMonth).forEach(c => {
-c.items.forEach(item => {
-if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
-else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
-});
-});
-data.handovers.filter(c => new Date(c.timestamp).toISOString().slice(0, 7) === currentMonth).forEach(c => {
-c.items.forEach(item => {
-if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
-else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
-});
-});
-
-const exportData = [];
-const allItems = [...data.prods, ...data.gifts];
-allItems.forEach(p => {
-const opening = Number(p.openingStock || 0);
-const received = Number(p.receivedThisMonth || 0);
-const used = monthlyUsage[p.id] || 0;
-const closing = opening + received - used;
-exportData.push({
-"ID": p.id, "Name": p.name, "Type": data.prods.includes(p) ? 'Product' : 'Gift',
-"Pack": p.pack, "Unit": p.unit, "Opening": opening, "Received": received, "Used": used, "Closing": closing
-});
-});
-
-const ws = XLSX.utils.json_to_sheet(exportData);
-const wb = XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(wb, ws, "Stock Report");
-XLSX.writeFile(wb, `Stock_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
-showToast("Exported to Excel");
-};
-
-window.printStockReport = function() {
-document.getElementById('print-area').style.display = 'none'; document.getElementById('print-handover-area').style.display = 'none';
-const stockPrintArea = document.getElementById('print-stock-area'); stockPrintArea.style.display = 'block';
-
-document.getElementById('sp-depot').innerText = currentDepotFilter === 'ALL' ? 'ALL DEPOTS' : currentDepotFilter;
-document.getElementById('sp-date').innerText = new Date().toLocaleDateString('en-GB');
-
-const currentMonth = new Date().toISOString().slice(0, 7);
-let monthlyUsage = {};
-data.challans.filter(c => new Date(c.timestamp).toISOString().slice(0, 7) === currentMonth).forEach(c => {
-c.items.forEach(item => {
-if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
-else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
-});
-});
-data.handovers.filter(c => new Date(c.timestamp).toISOString().slice(0, 7) === currentMonth).forEach(c => {
-c.items.forEach(item => {
-if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
-else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
-});
-});
-
-const printTbody = document.getElementById('sp-table-body'); printTbody.innerHTML = '';
-const allItems = [...data.prods, ...data.gifts];
-allItems.forEach(p => {
-const opening = Number(p.openingStock || 0);
-const received = Number(p.receivedThisMonth || 0);
-const used = monthlyUsage[p.id] || 0;
-const closing = opening + received - used;
-printTbody.innerHTML += `<tr><td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${p.unit}</td><td>${opening}</td><td>${received}</td><td>${used}</td><td>${closing}</td></tr>`;
-});
-window.print();
-};
+                <div style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1"><label style="color:var(--accent)">Cat A</label><input type="number" name="qtyA" value="${p.qtyA || 0}"></div>
+                    <div class="form-group" style="flex:1"><label style="color:var(--warning)">Cat B</label><input type="number" name="qtyB" value="${p.qtyB || 0}"></div>
+                    <div class="form-group" style="flex:1"><label style="color:var(--teal)">Cat C</label><input type="number" name="qtyC" value="${p.qtyC || 0}"></div>
+                    <div class="form-group" style="flex:1"><label style="color:var(--orange)">Cat D</label><input type="number" name="qtyD" value="${p.qtyD || 0}"></div>
+                    <div class="form-group" style="flex:1"><label style="color:var(--pink)">Cat E</label><input type="number" name="qtyE" value="${p.qtyE || 0}"></div>
+                </div>
+            `;
+            return; 
+        }
+
+        if(type === 'mpo') {
+            container.innerHTML = `
+                ${depotSelect()}
+                <div class="form-group"><label>MPO ID</label><input name="id" required></div>
+                <div class="form-group"><label>Name</label><input name="name" required></div>
+                <div class="form-group"><label>Territory</label><input name="territory"></div>
+                <div class="form-group"><label>Area</label><input name="area"></div> 
+                <div class="form-group"><label>Region</label><input name="region"></div> 
+                <div style="display:flex; gap:10px;">
+                    <div class="form-group" style="flex:1"><label style="color:var(--accent)">Category (Prod)</label><select name="categoryProd"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div>
+                    <div class="form-group" style="flex:1"><label style="color:var(--purple)">Category (Gift)</label><select name="categoryGift"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div>
+                </div>
+                <div class="form-group"><label>TP Sales</label><input type="number" name="sales"></div>
+                <div class="form-group"><label>Status</label><select name="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+                <div class="form-group"><label>Assign DA</label><select name="daId" id="modal-da-select"><option value="">None</option></select></div>
+            `;
+        } else if (type === 'da') {
+            container.innerHTML = `${depotSelect()}<div class="form-group"><label>DA ID</label><input name="id" required></div><div class="form-group"><label>Name</label><input name="name" required></div><div class="form-group"><label>Phone</label><input name="phone"></div><div class="form-group"><label>Vehicle No.</label><input name="vehicle"></div>`;
+        } else if (type === 'prod' || type === 'gift') {
+            const statusField = `<div class="form-group"><label>Status</label><select name="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>`;
+            const idField = `<div class="form-group"><label>Unique ID</label><input name="id" required placeholder="e.g. ASL, G01"></div>`;
+            container.innerHTML = `
+                ${depotSelect()} ${idField}
+                <div class="form-group"><label>Name</label><input name="name" required></div>
+                <div class="form-group"><label>Pack Size</label><input name="pack" required></div>
+                <div class="form-group"><label>Unit</label><select name="unit"><option>Box</option><option>Pot</option><option>Pcs</option><option>Vial</option></select></div>
+                <div style="display:flex; gap:5px">
+                    <div class="form-group" style="flex:1"><label>Qty A</label><input type="number" name="qtyA" value="0"></div>
+                    <div class="form-group" style="flex:1"><label>Qty B</label><input type="number" name="qtyB" value="0"></div>
+                    <div class="form-group" style="flex:1"><label>Qty C</label><input type="number" name="qtyC" value="0"></div>
+                    <div class="form-group" style="flex:1"><label>Qty D</label><input type="number" name="qtyD" value="0"></div>
+                    <div class="form-group" style="flex:1"><label>Qty E</label><input type="number" name="qtyE" value="0"></div>
+                </div>
+                ${statusField}
+            `;
+        } else if (type === 'user') {
+            container.innerHTML = `
+                <div class="form-group"><label>Username</label><input name="username" required></div>
+                <div class="form-group"><label>Password</label><input name="password" type="password" required></div>
+                <div class="form-group"><label>Depot ID</label><input name="depotId" placeholder="e.g. KUS" required></div>
+                <div class="form-group"><label>Role</label>
+                    <select name="role" required>
+                        <option value="user">User (Limited)</option>
+                        <option value="dic">DIC (Operational)</option>
+                        <option value="admin">Admin (Full Access)</option>
+                    </select>
+                </div>
+            `;
+        }
+    };
+
+    window.updateModalDAOptions = function(selectedDepotId) {
+        const daSelect = document.getElementById('modal-da-select');
+        if (!daSelect) return;
+        daSelect.innerHTML = '<option value="">None</option>';
+        if (selectedDepotId && data.das) {
+            data.das.filter(d => d.depotId === selectedDepotId).forEach(d => daSelect.innerHTML += `<option value="${d.id}">${d.name}</option>`);
+        }
+    };
+
+    window.editItem = function(type, id) {
+        let item;
+        if(type === 'user') item = data.users.find(x => x.key === id);
+        else if (type === 'gift') item = data.gifts.find(x => x.id === id);
+        else item = (type==='mpo'?data.mpos:type==='da'?data.das:data.prods).find(x => x.id === id);
+        
+        if(!item) return;
+
+        window.openModal(type);
+        editId = item.key || id;
+        document.getElementById('modal-title').innerText = 'Edit ' + type.toUpperCase();
+        const form = document.getElementById('modal-form');
+        for(let key in item) if(form.elements[key]) form.elements[key].value = item[key];
+        
+        if(type === 'mpo' && item.depotId) { window.updateModalDAOptions(item.depotId); form.elements['daId'].value = item.daId || ''; }
+        if((type === 'prod' || type === 'gift') && item.depotId) form.elements['depotId'].value = item.depotId;
+    };
+
+    window.deleteItem = function(type, id) {
+        if(!window.hasDeletePermission()) {
+            return showToast("Permission Denied: You cannot delete records.");
+        }
+        
+        if(!confirm('Delete this record?')) return;
+        let path = '';
+        if(type === 'user') path = 'users/' + id;
+        else if(type === 'mpo') path = 'mpos/' + id;
+        else if(type === 'da') path = 'das/' + id;
+        else if(type === 'prod') {
+            const prod = data.prods.find(p => p.id === id);
+            if(!prod || !prod.depotId) return showToast("Error: Cannot find product path");
+            path = `depots/${prod.depotId}/products/${id}`;
+        }
+        else if(type === 'gift') {
+            const gift = data.gifts.find(g => g.id === id);
+            if(!gift || !gift.depotId) return showToast("Error: Cannot find gift path");
+            path = `depots/${gift.depotId}/gifts/${id}`;
+        }
+        remove(ref(db, path)).then(() => showToast("Record Deleted"));
+    };
+
+    window.saveModalData = function(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const obj = {};
+        formData.forEach((value, key) => obj[key] = value);
+
+        // Handle Category Updates
+        if(editType === 'editCategory' || editType === 'editGiftCategory') {
+            const depotId = obj.depotId;
+            if(!depotId) return showToast("Depot ID missing");
+            const updateObj = { qtyA: Number(form.qtyA.value), qtyB: Number(form.qtyB.value), qtyC: Number(form.qtyC.value), qtyD: Number(form.qtyD.value), qtyE: Number(form.qtyE.value) };
+            const path = editType === 'editCategory' ? `depots/${depotId}/products/${editId}` : `depots/${depotId}/gifts/${editId}`;
+            update(ref(db, path), updateObj).then(() => { showToast("Categories Updated"); closeModal(); }).catch(err => showToast("Error: " + err.message));
+            return; 
+        }
+
+        // Handle Add Stock (Prod or Gift)
+        if(editType === 'addStockProd' || editType === 'addStockGift') {
+            const addedStock = Number(obj.stockToAdd);
+            const type = obj.itemType; 
+            
+            let item;
+            if (type === 'prod') item = data.prods.find(p => p.id === editId);
+            else item = data.gifts.find(g => g.id === editId);
+            
+            if(!item || addedStock <= 0) return showToast("Invalid input");
+            
+            const depotId = item.depotId;
+            const currentTotal = Number(item.receivedStock || 0);
+            const currentMonthly = Number(item.receivedThisMonth || 0);
+            
+            const updateObj = {
+                receivedStock: currentTotal + addedStock,
+                receivedThisMonth: currentMonthly + addedStock
+            };
+
+            const path = type === 'prod' ? `depots/${depotId}/products/${editId}` : `depots/${depotId}/gifts/${editId}`;
+            
+            update(ref(db, path), updateObj)
+                .then(() => { showToast(`Stock Added! Total: ${updateObj.receivedStock}`); closeModal(); })
+                .catch(err => showToast("Error: " + err.message));
+            return; 
+        }
+
+        // Handle Product/Gift Save
+        if(editType === 'prod' || editType === 'gift') {
+            const depotId = obj.depotId;
+            const customId = obj.id ? String(obj.id).trim() : null;
+            if(!depotId || !customId) return showToast("Depot ID and Custom ID are required");
+            
+            obj.qtyA = Number(obj.qtyA); obj.qtyB = Number(obj.qtyB); obj.qtyC = Number(obj.qtyC); obj.qtyD = Number(obj.qtyD); obj.qtyE = Number(obj.qtyE);
+            obj.isActive = obj.isActive === 'true';
+            
+            const path = editType === 'prod' ? `depots/${depotId}/products/${customId}` : `depots/${depotId}/gifts/${customId}`;
+            set(ref(db, path), obj).then(() => { showToast("Saved Successfully"); closeModal(); }).catch(err => showToast("Error Saving: " + err.message));
+            return;
+        }
+
+        // Handle Others (MPO, DA, User)
+        if(obj.sales) obj.sales = Number(obj.sales);
+        if(obj.isActive !== undefined) obj.isActive = obj.isActive === 'true' || obj.isActive === true;
+
+        let path = '';
+        if(editType === 'user') path = 'users/' + (editId || Date.now());
+        else if(editType === 'mpo') path = 'mpos/' + (editId || obj.id);
+        else if(editType === 'da') path = `das/${(editId || obj.id)}`;
+
+        set(ref(db, path), obj).then(() => { showToast("Saved Successfully"); closeModal(); }).catch(err => showToast("Error Saving: " + err.message));
+    };
+
+    window.closeModal = function() { document.getElementById('modal').style.display = 'none'; };
+
+    // EXCEL UPLOAD LOGIC
+    let uploadType = null; let parsedExcelData = [];
+
+    window.openUploadModal = function(type) {
+        uploadType = type;
+        document.getElementById('upload-modal').style.display = 'flex';
+        document.getElementById('upload-title').innerText = `Upload ${type === 'mpo' ? 'MPOs' : type === 'prod' ? 'Products' : 'Gifts'} from Excel`;
+        document.getElementById('excel-file').value = ''; 
+        document.getElementById('upload-status').innerText = '';
+        document.getElementById('upload-preview-container').style.display = 'none';
+        document.getElementById('btn-confirm-upload').disabled = true;
+        parsedExcelData = [];
+    };
+
+    window.closeUploadModal = function() { document.getElementById('upload-modal').style.display = 'none'; };
+
+    document.getElementById('excel-file').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            parsedExcelData = XLSX.utils.sheet_to_json(worksheet, {defval:""}); 
+            if(parsedExcelData.length === 0) { document.getElementById('upload-status').innerText = "Error: Empty file."; return; }
+            
+            // Render Preview
+            const table = document.getElementById('upload-preview-table');
+            document.getElementById('upload-preview-container').style.display = 'block';
+            table.innerHTML = '';
+            const headers = Object.keys(parsedExcelData[0]);
+            let thead = '<thead><tr>'; headers.forEach(h => thead += `<th>${h}</th>`); thead += '</tr></thead>';
+            table.innerHTML += thead;
+            let tbody = '<tbody>';
+            parsedExcelData.slice(0, 5).forEach((row) => {
+                tbody += '<tr>'; headers.forEach(h => tbody += `<td>${row[h]}</td>`); tbody += '</tr>';
+            });
+            if(parsedExcelData.length > 5) tbody += `<tr><td colspan="${headers.length}" style="text-align:center;">... and ${parsedExcelData.length - 5} more rows ...</td></tr>`;
+            tbody += '</tbody>';
+            table.innerHTML += tbody;
+
+            document.getElementById('upload-status').innerText = `Loaded ${parsedExcelData.length} records.`;
+            document.getElementById('btn-confirm-upload').disabled = false;
+        };
+        reader.readAsArrayBuffer(file);
+    });
+
+    window.confirmExcelUpload = function() {
+        if(!uploadType || parsedExcelData.length === 0) return;
+        if(!confirm(`Upload ${parsedExcelData.length} records?`)) return;
+        document.getElementById('upload-status').innerText = "Uploading...";
+        document.getElementById('btn-confirm-upload').disabled = true;
+
+        const currentDepot = currentUser.depotId;
+        
+        const processUpload = async () => {
+            try {
+                let count = 0;
+                for (const row of parsedExcelData) {
+                    const id = row['ID'] || row['id'];
+                    if(!id) continue;
+                    
+                    if(uploadType === 'prod') {
+                        const item = {
+                            name: row['Name'] || row['name'], pack: row['Pack'] || row['pack'], unit: row['Unit'] || row['unit'],
+                            qtyA: Number(row['QtyA'] || 0), qtyB: Number(row['QtyB'] || 0), qtyC: Number(row['QtyC'] || 0), qtyD: Number(row['QtyD'] || 0), qtyE: Number(row['QtyE'] || 0),
+                            receivedStock: Number(row['ReceivedStock'] || 0), receivedThisMonth: Number(row['ReceivedThisMonth'] || 0), openingStock: Number(row['OpeningStock'] || 0),
+                            depotId: (row['DepotId'] || row['depotId']) || currentDepot, isActive: row['isActive'] !== false, id: id
+                        };
+                        await set(ref(db, `depots/${item.depotId}/products/${id}`), item);
+                    } else if (uploadType === 'gift') {
+                         const item = {
+                            name: row['Name'] || row['name'], pack: row['Pack'] || row['pack'], unit: row['Unit'] || row['unit'],
+                            qtyA: Number(row['QtyA'] || 0), qtyB: Number(row['QtyB'] || 0), qtyC: Number(row['QtyC'] || 0), qtyD: Number(row['QtyD'] || 0), qtyE: Number(row['QtyE'] || 0),
+                            depotId: (row['DepotId'] || row['depotId']) || currentDepot, isActive: row['isActive'] !== false, id: id
+                        };
+                        await set(ref(db, `depots/${item.depotId}/gifts/${id}`), item);
+                    } else if (uploadType === 'mpo') {
+                         const item = {
+                            id: id, name: row['Name'] || row['name'], territory: row['Territory'] || row['territory'], area: row['Area'] || row['area'] || '', region: row['Region'] || row['region'] || '',
+                            categoryProd: row['CategoryProd'] || row['categoryProd'], categoryGift: row['CategoryGift'] || row['categoryGift'],
+                            sales: Number(row['Sales'] || 0), depotId: (row['DepotId'] || row['depotId']) || currentDepot, isActive: row['isActive'] !== false
+                        };
+                        await set(ref(db, `mpos/${id}`), item);
+                    }
+                    count++;
+                }
+                showToast(`Successfully uploaded ${count} records!`);
+                window.closeUploadModal();
+            } catch (error) {
+                console.error(error);
+                showToast("Error uploading data.");
+                document.getElementById('btn-confirm-upload').disabled = false;
+                document.getElementById('upload-status').innerText = "Error occurred.";
+            }
+        };
+        processUpload();
+    };
+
+    // --- STOCK LOGIC ---
+    window.renderStockReport = function(fProds, fGifts, fChallans) {
+        const table = document.getElementById('stock-report-table');
+        table.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Pack</th><th>Unit</th><th>Opening</th><th>Received</th><th>Used</th><th>Closing</th></tr></thead>`;
+        
+        const allItems = [...fProds, ...fGifts];
+        const currentMonth = new Date().toISOString().slice(0, 7);
+
+        let monthlyUsage = {};
+        
+        // Regular Challans
+        fChallans.forEach(c => {
+            const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
+            if(cDate === currentMonth && c.items) {
+                c.items.forEach(item => {
+                    if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
+                    else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
+                });
+            }
+        });
+
+        // Hand Overs
+        data.handovers.forEach(c => {
+            const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
+            if(currentUser.role !== 'admin' && c.depotId !== currentUser.depotId) return;
+            if(currentUser.role === 'admin' && currentDepotFilter !== 'ALL' && c.depotId !== currentDepotFilter) return;
+
+            if(cDate === currentMonth && c.items) {
+                c.items.forEach(item => {
+                    if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
+                    else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
+                });
+            }
+        });
+
+        allItems.forEach(p => {
+            const opening = Number(p.openingStock || 0);
+            const received = Number(p.receivedThisMonth || 0);
+            const used = monthlyUsage[p.id] || 0;
+            const closing = opening + received - used;
+
+            table.innerHTML += `<tr>
+                <td>${p.id}</td>
+                <td>${p.name}</td>
+                <td>${p.pack}</td>
+                <td>${p.unit}</td>
+                <td>${opening}</td>
+                <td>${received}</td>
+                <td>${used}</td>
+                <td style="font-weight:bold; color:${closing < 0 ? 'red' : 'green'}">${closing}</td>
+            </tr>`;
+        });
+    };
+
+    // UPDATED: Close Month Logic (Closing = Opening + Received - Used)
+    window.closeMonth = function() {
+        if(!confirm('Are you sure you want to Close Month?\n\nThis will:\n1. Set Closing Stock (Opening + Received - Used) as new Opening Stock.\n2. Reset Monthly Received to 0.')) return;
+        
+        const fProds = data.prods;
+        const fGifts = data.gifts;
+        const fChallans = getFilteredData(data.challans);
+        const currentMonth = new Date().toISOString().slice(0, 7);
+
+        // Recalculate usage just to be safe
+        let monthlyUsage = {};
+        
+        fChallans.forEach(c => {
+            const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
+            if(cDate === currentMonth && c.items) {
+                c.items.forEach(item => {
+                    if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
+                    else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
+                });
+            }
+        });
+        
+        // Handovers
+         data.handovers.forEach(c => {
+            const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
+            if(currentUser.role !== 'admin' && c.depotId !== currentUser.depotId) return;
+            if(currentUser.role === 'admin' && currentDepotFilter !== 'ALL' && c.depotId !== currentDepotFilter) return;
+
+            if(cDate === currentMonth && c.items) {
+                c.items.forEach(item => {
+                    if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
+                    else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
+                });
+            }
+        });
+
+        const updates = [];
+        const allItems = [...fProds, ...fGifts];
+
+        allItems.forEach(p => {
+            // FORMULA: Closing = Opening + Received - Used
+            const opening = Number(p.openingStock || 0);
+            const received = Number(p.receivedThisMonth || 0);
+            const used = monthlyUsage[p.id] || 0;
+            const closing = opening + received - used;
+
+            const updateObj = {
+                openingStock: closing, // New Opening is Closing
+                receivedThisMonth: 0,  // Reset Received
+                name: p.name, pack: p.pack, unit: p.unit,
+                qtyA: p.qtyA, qtyB: p.qtyB, qtyC: p.qtyC, qtyD: p.qtyD, qtyE: p.qtyE,
+                isActive: p.isActive
+            };
+
+            let path = '';
+            if(fProds.includes(p)) path = `depots/${p.depotId}/products/${p.id}`;
+            else path = `depots/${p.depotId}/gifts/${p.id}`;
+
+            updates.push(update(ref(db, path), updateObj));
+        });
+
+        Promise.all(updates).then(() => {
+            showToast("Month Closed Successfully!");
+            window.renderStockReport(data.prods, data.gifts, getFilteredData(data.challans));
+        }).catch(err => showToast("Error: " + err.message));
+    };
+
+    window.exportStockToExcel = function() {
+        const fProds = data.prods; 
+        const fGifts = data.gifts;
+        const fChallans = getFilteredData(data.challans);
+        const currentMonth = new Date().toISOString().slice(0, 7);
+
+        let monthlyUsage = {};
+        
+        // Regular
+        fChallans.forEach(c => {
+            const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
+            if(cDate === currentMonth && c.items) {
+                c.items.forEach(item => {
+                    if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
+                    else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
+                });
+            }
+        });
+        
+        // Hand Over
+        data.handovers.forEach(c => {
+            const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
+             if(currentUser.role !== 'admin' && c.depotId !== currentUser.depotId) return;
+            if(cDate === currentMonth && c.items) {
+                c.items.forEach(item => {
+                    if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
+                    else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
+                });
+            }
+        });
+
+        const exportData = [];
+        const allItems = [...fProds, ...fGifts];
+
+        allItems.forEach(p => {
+            const type = fProds.includes(p) ? 'Product' : 'Gift';
+            const opening = Number(p.openingStock || 0);
+            const received = Number(p.receivedThisMonth || 0);
+            const used = monthlyUsage[p.id] || 0;
+            const closing = opening + received - used;
+
+            exportData.push({
+                "ID": p.id, "Name": p.name, "Type": type, "Pack": p.pack, "Unit": p.unit,
+                "Opening": opening, "Received": received, "Used": used, "Closing": closing
+            });
+        });
+
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Stock Report");
+
+        const dateStr = new Date().toISOString().slice(0,10);
+        XLSX.writeFile(wb, `Stock_Report_${dateStr}.xlsx`);
+        
+        showToast("Stock Report Exported to Excel");
+    };
+
+    window.printStockReport = function() {
+        document.getElementById('print-area').style.display = 'none';
+        document.getElementById('print-handover-area').style.display = 'none';
+        const stockPrintArea = document.getElementById('print-stock-area');
+        stockPrintArea.style.display = 'block';
+
+        const depotText = currentUser.role === 'admin' && currentDepotFilter === 'ALL' ? 'ALL DEPOTS' : currentDepotFilter;
+        document.getElementById('sp-depot').innerText = depotText || 'ALL';
+        document.getElementById('sp-date').innerText = new Date().toLocaleDateString('en-GB');
+
+        const fProds = data.prods; 
+        const fGifts = data.gifts;
+        const fChallans = getFilteredData(data.challans);
+        const currentMonth = new Date().toISOString().slice(0, 7);
+
+        let monthlyUsage = {};
+        fChallans.forEach(c => {
+            const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
+            if(cDate === currentMonth && c.items) {
+                c.items.forEach(item => {
+                    if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
+                    else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
+                });
+            }
+        });
+        
+        // Hand Over usage
+        data.handovers.forEach(c => {
+            const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
+            if(currentUser.role !== 'admin' && c.depotId !== currentUser.depotId) return;
+            if(cDate === currentMonth && c.items) {
+                c.items.forEach(item => {
+                    if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
+                    else monthlyUsage[item.id] = parseInt(item.issueQty || 0);
+                });
+            }
+        });
+
+        const printTbody = document.getElementById('sp-table-body');
+        printTbody.innerHTML = '';
+
+        const allItems = [...fProds, ...fGifts];
+
+        allItems.forEach(p => {
+            const opening = Number(p.openingStock || 0);
+            const received = Number(p.receivedThisMonth || 0);
+            const used = monthlyUsage[p.id] || 0;
+            const closing = opening + received - used;
+
+            printTbody.innerHTML += `
+                <tr>
+                    <td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${p.unit}</td>
+                    <td>${opening}</td><td>${received}</td><td>${used}</td><td>${closing}</td>
+                </tr>
+            `;
+        });
+        
+        window.print();
+    };
 </script>
 
+<!-- DEVELOPER TOOLS BLOCKER -->
+<script>    
+    document.addEventListener('contextmenu', event => event.preventDefault());
+    document.onkeydown = function(e) {
+        if(e.keyCode == 123) return false;
+        if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false;
+        if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false;
+        if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false;
+    }
+    window.toggleMobileMenu = function() {
+        const menu = document.getElementById('mobile-nav');
+        if (menu) menu.classList.toggle('active');
+    };
+</script>
 </body>
 </html>
-
-
-
-                    
-                    
-                    
-                    
