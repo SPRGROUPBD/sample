@@ -230,6 +230,8 @@
         .product-list-info strong { display: block; color: var(--primary); }
         .product-list-info span { font-size: 0.85rem; color: #7f8c8d; }
         .product-qty { font-weight: bold; color: var(--accent); margin-right: 10px; background: #eaf2f8; padding: 2px 6px; border-radius: 4px;}
+        
+        .stock-zero-warning { color: var(--danger) !important; background: #fdeaea !important; }
 
         /* MANUAL GENERATOR SPECIFIC STYLES */
         .manual-qty-input {
@@ -1292,7 +1294,7 @@
     let currentUser = null; 
     let currentDepotFilter = 'ALL'; 
     let allDepots = new Set();
-    let appSettings = { allowDeleteDIC: false, allowDeleteUser: false }; // New Settings State
+    let appSettings = { allowDeleteDIC: false, allowDeleteUser: false };
     
     let productListeners = []; 
     let giftListeners = []; 
@@ -2131,6 +2133,11 @@
 
             if (qty <= 0) return;
 
+            // --- UPDATE: Check Closing Stock ---
+            const closingStock = getItemClosingStock(p);
+            const warnHtml = (closingStock <= 0) ? '<i class="fa-solid fa-triangle-exclamation" style="color:red; margin-left:5px;" title="Out of Stock!"></i>' : '';
+            const stockClass = (closingStock <= 0) ? 'stock-zero-warning' : 'product-qty';
+
             const div = document.createElement('div');
             div.className = 'product-list-item';
             div.innerHTML = `
@@ -2142,7 +2149,7 @@
                 <div style="display:flex; gap:5px; margin-left:auto; font-size:0.75rem; color:#666; background:#eee; padding:2px 5px; border-radius:3px;">
                     A:${p.qtyA} B:${p.qtyB} C:${p.qtyC} D:${p.qtyD} E:${p.qtyE}
                 </div>
-                <div class="product-qty">Avail: ${qty}</div>
+                <div class="${stockClass}">Closing: ${closingStock}${warnHtml}</div>
             `;
             listContainer.appendChild(div);
         });
@@ -2214,13 +2221,19 @@
 
             const div = document.createElement('div');
             div.className = 'product-list-item';
+            
+            // --- UPDATE: Check Closing Stock ---
+            const closingStock = getItemClosingStock(p);
+            const warnHtml = (closingStock <= 0) ? '<i class="fa-solid fa-triangle-exclamation" style="color:red; margin-left:5px;" title="Out of Stock!"></i>' : '';
+            const stockClass = (closingStock <= 0) ? 'stock-zero-warning' : 'product-qty';
+
             div.innerHTML = `
                 <input type="checkbox" class="gift-cb" value="${p.id}" onchange="window.toggleGift('${p.id}')">
                 <div class="product-list-info"><strong>${p.name}</strong><span>ID: ${p.id} | Pack: ${p.pack}</span></div>
                 <div style="display:flex; gap:5px; margin-left:auto; font-size:0.75rem; color:#666; background:#eee; padding:2px 5px; border-radius:3px;">
                     A:${p.qtyA} B:${p.qtyB} C:${p.qtyC} D:${p.qtyD} E:${p.qtyE}
                 </div>
-                <div class="product-qty" style="color:var(--purple)">Avail: ${qty}</div>
+                <div class="${stockClass}" style="color:var(--purple)">Closing: ${closingStock}${warnHtml}</div>
             `;
             listContainer.appendChild(div);
         });
@@ -2394,8 +2407,9 @@
             mpoName: currentMPO.name,
             mpoTerritory: currentMPO.territory,
             mpoArea: currentMPO.area || '', 
-            mpoRegion: currentMPO.region || '', 
-            mpoCat: cat,
+            mpoRegion: currentMPO.region || '',
+            mpoProdCat: currentMPO.categoryProd || '-',
+            mpoGiftCat: currentMPO.categoryGift || '-',
             mpoSales: currentMPO.sales,
             daId: daId,
             items: itemsArray,
@@ -2474,8 +2488,9 @@
             mpoName: currentMPO.name,
             mpoTerritory: currentMPO.territory,
             mpoArea: currentMPO.area || '', 
-            mpoRegion: currentMPO.region || '', 
-            mpoCat: cat,
+            mpoRegion: currentMPO.region || '',
+            mpoProdCat: currentMPO.categoryProd || '-',
+            mpoGiftCat: currentMPO.categoryGift || '-',
             mpoSales: currentMPO.sales,
             daId: daId,
             items: items,
@@ -2503,8 +2518,7 @@
         });
         
         window.scrollTo(0, 0);
-        
-        setTimeout(() => {
+                setTimeout(() => {
             const mpoSelect = document.getElementById(type==='prod'?'gen-mpo':'gen-mpo-gift');
             if(mpoSelect) {
                 mpoSelect.value = selectedMpoForDialog;
@@ -2551,7 +2565,7 @@
                     <td>${item.pack}</td>
                     <td style="text-align:right">${item.issueQty}</td>
                     <td>${item.unit}</td>
-                </            </tr>
+                </tr>
             `;
         });
 
@@ -2563,7 +2577,6 @@
         };
 
         const deleteBtn = document.getElementById('vc-delete-btn');
-        // Permission Check for Delete Button
         if(window.hasDeletePermission()) {
             deleteBtn.style.display = 'inline-flex';
             deleteBtn.onclick = function() {
@@ -2617,7 +2630,7 @@
         window.print();
     };
 
-    // UPDATED: Challan History with Grand Total (CC) and Delete Permission
+    // UPDATED: Challan History with Cat(Prod) and Cat(Gift)
     window.renderChallans = function(fChallans, fMpos) {
         if (!fChallans) fChallans = getFilteredData(data.challans);
         if (!fMpos) fMpos = getFilteredData(data.mpos);
@@ -2692,7 +2705,6 @@
         const contentArea = document.getElementById('challan-content-area');
         const noMsg = document.getElementById('no-challan-msg');
         
-        // Check Delete Permission Once
         const canDelete = window.hasDeletePermission();
 
         if (list.length === 0) {
@@ -2708,11 +2720,15 @@
                     let typeBadge = '';
                     let displayName = c.mpoName || '-';
                     let displayArea = c.mpoArea || '-';
+                    let displayCatProd = c.mpoProdCat || '-';
+                    let displayCatGift = c.mpoGiftCat || '-';
                     
                     if (c.type === 'Hand Over') {
                         typeBadge = '<span style="background:var(--teal); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Hand Over</span>';
                         displayName = `To: ${c.to}`;
                         displayArea = `From: ${c.from}`;
+                        displayCatProd = '-';
+                        displayCatGift = '-';
                     } else if(c.isManual) {
                         typeBadge = '<span style="background:var(--warning); color:white; padding:4px 8px; border-radius:12px; font-size:0.75rem;">Manual</span>';
                     } else if (c.type === 'Gift') {
@@ -2723,7 +2739,6 @@
 
                     const grandTotal = c.items.reduce((sum, item) => sum + (parseInt(item.issueQty) || 0), 0);
                     
-                    // Delete Button Logic
                     let deleteBtnHtml = '';
                     if(canDelete) {
                         deleteBtnHtml = `<button class="btn btn-sm btn-danger" onclick="window.deleteChallan('${c.key}', '${c.type}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
@@ -2737,6 +2752,8 @@
                             <td>${displayName}</td>
                             <td>${displayArea}</td>
                             <td style="text-align:center">${c.items.length}</td>
+                            <td style="text-align:center; font-weight:bold;">${displayCatProd}</td>
+                            <td style="text-align:center; font-weight:bold;">${displayCatGift}</td>
                             <td style="text-align:center; font-weight:bold; color:var(--accent);">${grandTotal}</td>
                             <td>
                                 <button class="btn btn-sm btn-secondary" onclick="window.viewChallanDetails('${c.key}')" title="View Items"><i class="fa-solid fa-eye"></i></button>
@@ -2760,6 +2777,8 @@
                                     <th>MPO / To</th>
                                     <th>Area</th>
                                     <th width="60">Items</th>
+                                    <th width="60">Cat(Prod)</th>
+                                    <th width="60">Cat(Gift)</th>
                                     <th width="80">Grand Total (CC)</th>
                                     <th width="200">Actions</th>
                                 </tr>
@@ -2805,6 +2824,8 @@
                                             <th>MPO / To</th>
                                             <th>Area</th>
                                             <th width="60">Items</th>
+                                            <th width="60">Cat(Prod)</th>
+                                            <th width="60">Cat(Gift)</th>
                                             <th width="80">Grand Total (CC)</th>
                                             <th width="200">Actions</th>
                                         </tr>
@@ -2833,7 +2854,7 @@
         remove(ref(db, path)).then(() => showToast("Record Deleted"));
     };
 
-    // MANAGEMENT TABLES RENDERING
+    // MANAGEMENT TABLES RENDERING WITH ACTIVE/DEACTIVE
     window.renderMgmtTables = function(fMpos, fProds, fGifts, fDas, fUsers) {
         if (!fMpos) fMpos = getFilteredData(data.mpos);
         if (!fProds) fProds = data.prods; 
@@ -2878,17 +2899,19 @@
             const isMpoActive = (m.isActive !== false);
             const statusBadge = isMpoActive ? '<span style="color:var(--success); font-weight:bold;">Active</span>' : '<span style="color:var(--danger); font-weight:bold;">Inactive</span>';
             
-            let actionBtns = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('mpo','${m.id}')"><i class="fa-solid fa-pen"></i></button>`;
-            if(canDelete) {
-                actionBtns += ` <button class="btn btn-sm btn-danger" onclick="window.deleteItem('mpo','${m.id}')"><i class="fa-solid fa-trash"></i></button>`;
-            }
+            // Toggle Button
+            const toggleBtn = `<button class='btn btn-sm ${isMpoActive ? 'btn-warning' : 'btn-success'}' onclick='window.toggleStatus("mpo", "${m.id}", ${!isMpoActive})' title='${isMpoActive ? 'Deactivate' : 'Activate'}'>
+                <i class='fa-solid fa-${isMpoActive ? 'toggle-on' : 'toggle-off'}'></i>
+            </button>`;
+
+            let editBtn = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('mpo','${m.id}')"><i class="fa-solid fa-pen"></i></button>`;
             
             mpoT.innerHTML += `
                 <tr>
                     <td>${m.id}</td><td>${m.name}</td><td>${m.territory}</td><td>${m.area || '-'}</td>
                     <td>${m.sales || 0}</td><td>${m.categoryProd || m.category || '-'}</td><td>${m.categoryGift || '-'}</td>
                     <td>${statusBadge}</td><td>${m.depotId || '<span style="color:red">Missing</span>'}</td>
-                    <td>${actionBtns}</td>
+                    <td>${toggleBtn} ${editBtn}</td>
                 </tr>`;
         });
 
@@ -2919,23 +2942,22 @@
         prodT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Pack</th><th>Status</th><th>A/B/C/D/E</th><th>Depot</th><th>Actions</th></tr></thead>`;
         
         filteredProds.forEach(p => {
-            const statusBadge = (p.isActive === false || p.isActive === 'false') ? '<span style="color:red; font-weight:bold;">Inactive</span>' : '<span style="color:var(--success); font-weight:bold;">Active</span>';
+            const isItemActive = (p.isActive !== false && p.isActive !== 'false');
+            const statusBadge = isItemActive ? '<span style="color:var(--success); font-weight:bold;">Active</span>' : '<span style="color:var(--danger); font-weight:bold;">Inactive</span>';
+            
+            const toggleBtn = `<button class='btn btn-sm ${isItemActive ? 'btn-warning' : 'btn-success'}' onclick='window.toggleStatus("prod", "${p.id}", ${!isItemActive})'><i class='fa-solid fa-${isItemActive ? 'toggle-on' : 'toggle-off'}'></i></button>`;
             
             let actionBtns = `
                 <button class="btn btn-sm btn-cyan" onclick="window.openModal('editCategory','${p.id}')" title="Edit Category"><i class="fa-solid fa-layer-group"></i></button>
                 <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('prod','${p.id}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
                 <button class="btn btn-sm btn-secondary" onclick="window.editItem('prod','${p.id}')"><i class="fa-solid fa-pen"></i></button>`;
-            
-            if(canDelete) {
-                actionBtns += ` <button class="btn btn-sm btn-danger" onclick="window.deleteItem('prod','${p.id}')"><i class="fa-solid fa-trash"></i></button>`;
-            }
 
             prodT.innerHTML += `
                 <tr>
                     <td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${statusBadge}</td>
                     <td>${p.qtyA}/${p.qtyB}/${p.qtyC}/${p.qtyD}/${p.qtyE}</td>
                     <td>${p.depotId || '<span style="color:red">Missing</span>'}</td>
-                    <td>${actionBtns}</td>
+                    <td>${toggleBtn} ${actionBtns}</td>
                 </tr>`;
         });
 
@@ -2951,37 +2973,38 @@
         giftT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Pack</th><th>Status</th><th>A/B/C/D/E</th><th>Depot</th><th>Actions</th></tr></thead>`;
         
         filteredGifts.forEach(p => {
-            const statusBadge = (p.isActive === false || p.isActive === 'false') ? '<span style="color:red; font-weight:bold;">Inactive</span>' : '<span style="color:var(--success); font-weight:bold;">Active</span>';
+            const isItemActive = (p.isActive !== false && p.isActive !== 'false');
+            const statusBadge = isItemActive ? '<span style="color:var(--success); font-weight:bold;">Active</span>' : '<span style="color:var(--danger); font-weight:bold;">Inactive</span>';
+            
+            const toggleBtn = `<button class='btn btn-sm ${isItemActive ? 'btn-warning' : 'btn-success'}' onclick='window.toggleStatus("gift", "${p.id}", ${!isItemActive})'><i class='fa-solid fa-${isItemActive ? 'toggle-on' : 'toggle-off'}'></i></button>`;
             
             let actionBtns = `
                 <button class="btn btn-sm btn-purple" onclick="window.openModal('editGiftCategory','${p.id}')" title="Edit Category"><i class="fa-solid fa-layer-group"></i></button>
                 <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('gift','${p.id}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
                 <button class="btn btn-sm btn-secondary" onclick="window.editItem('gift','${p.id}')"><i class="fa-solid fa-pen"></i></button>`;
-            
-            if(canDelete) {
-                 actionBtns += ` <button class="btn btn-sm btn-danger" onclick="window.deleteItem('gift','${p.id}')"><i class="fa-solid fa-trash"></i></button>`;
-            }
 
             giftT.innerHTML += `
                 <tr>
                     <td>${p.id}</td><td>${p.name}</td><td>${p.pack}</td><td>${statusBadge}</td>
                     <td>${p.qtyA}/${p.qtyB}/${p.qtyC}/${p.qtyD}/${p.qtyE}</td>
                     <td>${p.depotId || '<span style="color:red">Missing</span>'}</td>
-                    <td>${actionBtns}</td>
+                    <td>${toggleBtn} ${actionBtns}</td>
                 </tr>`;
         });
 
         // Render DA Table
         const daT = document.getElementById('table-da');
-        daT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Depot</th><th>Actions</th></tr></thead>`;
+        daT.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Phone</th><th>Depot</th><th>Status</th><th>Actions</th></tr></thead>`;
         filteredDas.forEach(d => {
-            let actionBtns = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('da','${d.id}')"><i class="fa-solid fa-pen"></i></button>`;
-            if(canDelete) {
-                 actionBtns += ` <button class="btn btn-sm btn-danger" onclick="window.deleteItem('da','${d.id}')"><i class="fa-solid fa-trash"></i></button>`;
-            }
+             const isItemActive = (d.isActive !== false);
+            const statusBadge = isItemActive ? '<span style="color:var(--success); font-weight:bold;">Active</span>' : '<span style="color:var(--danger); font-weight:bold;">Inactive</span>';
+            
+            const toggleBtn = `<button class='btn btn-sm ${isItemActive ? 'btn-warning' : 'btn-success'}' onclick='window.toggleStatus("da", "${d.id}", ${!isItemActive})'><i class='fa-solid fa-${isItemActive ? 'toggle-on' : 'toggle-off'}'></i></button>`;
+            
+            let editBtn = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('da','${d.id}')"><i class="fa-solid fa-pen"></i></button>`;
             
             daT.innerHTML += `<tr><td>${d.id}</td><td>${d.name}</td><td>${d.phone || '-'}</td><td>${d.depotId || '<span style="color:red">Missing</span>'}</td>
-            <td>${actionBtns}</td></tr>`;
+            <td>${statusBadge}</td><td>${toggleBtn} ${editBtn}</td></tr>`;
         });
 
         // Render Users Table
@@ -2997,6 +3020,27 @@
                 userT.innerHTML += `<tr><td>${u.username}</td><td>${u.depotId}</td><td><span style="background:var(--secondary); color:white; padding:2px 8px; border-radius:10px; font-size:0.8rem; text-transform:uppercase;">${u.role || 'user'}</span></td>
                 <td>${actionBtns}</td></tr>`;
             });
+        }
+    };
+
+    // NEW: Toggle Status Function
+    window.toggleStatus = function(type, id, newState) {
+        let path = '';
+        if(type === 'mpo') path = 'mpos/' + id;
+        else if(type === 'da') path = 'das/' + id;
+        else if(type === 'prod') {
+            const item = data.prods.find(p => p.id === id);
+            if(item) path = `depots/${item.depotId}/products/${id}`;
+        }
+        else if(type === 'gift') {
+            const item = data.gifts.find(g => g.id === id);
+            if(item) path = `depots/${item.depotId}/gifts/${id}`;
+        }
+
+        if(path) {
+            update(ref(db, path), { isActive: newState })
+                .then(() => showToast(`Status updated to ${newState ? 'Active' : 'Inactive'}`))
+                .catch(err => showToast("Error updating status: " + err.message));
         }
     };
 
@@ -3101,13 +3145,11 @@
                     <div class="form-group" style="flex:1"><label style="color:var(--purple)">Category (Gift)</label><select name="categoryGift"><option>A</option><option>B</option><option>C</option><option>D</option><option>E</option></select></div>
                 </div>
                 <div class="form-group"><label>TP Sales</label><input type="number" name="sales"></div>
-                <div class="form-group"><label>Status</label><select name="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>
                 <div class="form-group"><label>Assign DA</label><select name="daId" id="modal-da-select"><option value="">None</option></select></div>
             `;
         } else if (type === 'da') {
             container.innerHTML = `${depotSelect()}<div class="form-group"><label>DA ID</label><input name="id" required></div><div class="form-group"><label>Name</label><input name="name" required></div><div class="form-group"><label>Phone</label><input name="phone"></div><div class="form-group"><label>Vehicle No.</label><input name="vehicle"></div>`;
         } else if (type === 'prod' || type === 'gift') {
-            const statusField = `<div class="form-group"><label>Status</label><select name="isActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>`;
             const idField = `<div class="form-group"><label>Unique ID</label><input name="id" required placeholder="e.g. ASL, G01"></div>`;
             container.innerHTML = `
                 ${depotSelect()} ${idField}
@@ -3121,7 +3163,6 @@
                     <div class="form-group" style="flex:1"><label>Qty D</label><input type="number" name="qtyD" value="0"></div>
                     <div class="form-group" style="flex:1"><label>Qty E</label><input type="number" name="qtyE" value="0"></div>
                 </div>
-                ${statusField}
             `;
         } else if (type === 'user') {
             container.innerHTML = `
@@ -3241,7 +3282,6 @@
             if(!depotId || !customId) return showToast("Depot ID and Custom ID are required");
             
             obj.qtyA = Number(obj.qtyA); obj.qtyB = Number(obj.qtyB); obj.qtyC = Number(obj.qtyC); obj.qtyD = Number(obj.qtyD); obj.qtyE = Number(obj.qtyE);
-            obj.isActive = obj.isActive === 'true';
             
             const path = editType === 'prod' ? `depots/${depotId}/products/${customId}` : `depots/${depotId}/gifts/${customId}`;
             set(ref(db, path), obj).then(() => { showToast("Saved Successfully"); closeModal(); }).catch(err => showToast("Error Saving: " + err.message));
@@ -3250,7 +3290,6 @@
 
         // Handle Others (MPO, DA, User)
         if(obj.sales) obj.sales = Number(obj.sales);
-        if(obj.isActive !== undefined) obj.isActive = obj.isActive === 'true' || obj.isActive === true;
 
         let path = '';
         if(editType === 'user') path = 'users/' + (editId || Date.now());
@@ -3417,7 +3456,6 @@
         });
     };
 
-    // UPDATED: Close Month Logic (Closing = Opening + Received - Used)
     window.closeMonth = function() {
         if(!confirm('Are you sure you want to Close Month?\n\nThis will:\n1. Set Closing Stock (Opening + Received - Used) as new Opening Stock.\n2. Reset Monthly Received to 0.')) return;
         
@@ -3426,7 +3464,6 @@
         const fChallans = getFilteredData(data.challans);
         const currentMonth = new Date().toISOString().slice(0, 7);
 
-        // Recalculate usage just to be safe
         let monthlyUsage = {};
         
         fChallans.forEach(c => {
