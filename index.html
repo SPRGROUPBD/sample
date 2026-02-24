@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sample Management System v2.0</title>
+    <title>Sample Management System v2.1</title>
     
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -128,6 +128,30 @@
         .section { display: none; animation: fadeIn 0.3s; }
         .section.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* DASHBOARD FOOTER (NEW) */
+        .dashboard-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+            border-left: 5px solid var(--accent);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .footer-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.1rem;
+            color: var(--secondary);
+        }
+        .footer-item i { color: var(--accent); font-size: 1.2rem; }
+        .footer-item strong { color: var(--dark); }
 
         /* DASHBOARD & CARDS */
         .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
@@ -481,7 +505,7 @@
             <i class="fa-solid fa-boxes-stacked"></i>
         </div>
         <h2>Sample Managment System</h2>
-        <p style="color:#7f8c8d; margin-bottom: 20px;">v2.0 | Role Based Access</p>
+        <p style="color:#7f8c8d; margin-bottom: 20px;">v2.1 | Role Based Access</p>
         
         <form id="login-form">
             <input type="text" name="username" class="login-input" placeholder="Username / ID" required autocomplete="off">
@@ -581,6 +605,21 @@
     <!-- DASHBOARD SECTION -->
     <section id="dashboard" class="section active">
         <h2><i class="fa-solid fa-tachometer-alt"></i> Dashboard Overview</h2>
+        
+        <!-- NEW DASHBOARD FOOTER -->
+        <div class="dashboard-footer">
+            <div class="footer-item">
+                <i class="fa-solid fa-user-circle"></i>
+                <span>Current User:</span>
+                <strong id="dash-username">Loading...</strong>
+            </div>
+            <div class="footer-item">
+                <i class="fa-solid fa-warehouse"></i>
+                <span>Assigned Depot:</span>
+                <strong id="dash-depot-id">Loading...</strong>
+            </div>
+        </div>
+
         <div class="dashboard-grid">
             <div class="card">
                 <h3 id="d-total-mpo">0</h3>
@@ -1415,6 +1454,8 @@
         giftListeners = [];
         initProductListeners();
         initGiftListeners(); 
+        // Re-render UI to update Dashboard Footer for Admin
+        updateUI();
     };
 
     // --- PERMISSION CHECKER ---
@@ -1613,6 +1654,19 @@
     function updateUI() {
         document.getElementById('loader').style.display = 'none';
         
+        // --- UPDATE DASHBOARD FOOTER ---
+        const dashUser = document.getElementById('dash-username');
+        const dashDepot = document.getElementById('dash-depot-id');
+        
+        if (dashUser) dashUser.innerText = currentUser.username;
+        if (dashDepot) {
+            if (currentUser.role === 'admin') {
+                dashDepot.innerText = currentDepotFilter === 'ALL' ? 'ALL DEPOTS (ADMIN)' : currentDepotFilter;
+            } else {
+                dashDepot.innerText = currentUser.depotId || 'N/A';
+            }
+        }
+
         const fMpos = getFilteredData(data.mpos);
         const fDas = getFilteredData(data.das);
         const fProds = data.prods; 
@@ -2915,8 +2969,8 @@
             }
 
             // Category Edit Button
-            const catEditBtn = `<button class="btn btn-sm btn-cyan" onclick="window.openModal('editCategory','${m.id}')" title="Edit Categories"><i class="fa-solid fa-layer-group"></i></button>`;
-            
+            const catEditBtn = `<button class="btn btn-sm btn-cyan" onclick="windowopenModal('editCategory','${m.id}')" title="Edit Categories"><i class="fa-solid fa-layer-group"></i></button>`;
+
             mpoT.innerHTML += `
                 <tr>
                     <td>${m.id}</td><td>${m.name}</td><td>${m.territory}</td><td>${m.area || '-'}</td>
@@ -2926,7 +2980,7 @@
                 </tr>`;
         });
 
-        // DA Filter Logic
+        // DA FILTER LOGIC (DEPOT WISE VIEW)
         const daDepotSelect = document.getElementById('filter-da-depot');
         const currentDaDepotVal = daDepotSelect.value;
         const uniqueDaDepots = new Set();
@@ -3191,7 +3245,8 @@
                 <div class="form-group"><label>Assign DA</label><select name="daId" id="modal-da-select"><option value="">None</option></select></div>
             `;
         } else if (type === 'da') {
-            container.innerHTML = `${depotSelect()}<div class="form-group"><label>DA ID</label><input name="id" " required></div>
+            container.innerHTML = `${depotSelect()}<div class="form-group"><label>DA ID</label><input name="id" required></div>
+<div class="form-group"><label>Name</label><input name="name" required></div>
 <div class="form-group"><label>Phone</label><input name="phone"></div>
 <div class="form-group"><label>Vehicle No.</label><input name="vehicle"></div>`;
         } else if (type === 'prod' || type === 'gift') {
