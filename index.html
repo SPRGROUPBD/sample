@@ -1684,10 +1684,11 @@
             }
         }
 
+        // FIX: Apply getFilteredData to Products and Gifts for Admin View
         const fMpos = getFilteredData(data.mpos);
         const fDas = getFilteredData(data.das);
-        const fProds = data.prods; // Already filtered by listener for users
-        const fGifts = data.gifts; // Already filtered by listener for users
+        const fProds = getFilteredData(data.prods); 
+        const fGifts = getFilteredData(data.gifts); 
         const fChallans = getFilteredData(data.challans);
         const fUsers = currentUser.role === 'admin' ? data.users : [];
 
@@ -2027,7 +2028,10 @@
         handOverSelections = {}; 
         updateCount('handover');
 
-        const allItems = [...data.prods, ...data.gifts].filter(p => p.isActive !== false);
+        // FIX: Filter items based on Admin selection or User Depot
+        const fProds = getFilteredData(data.prods);
+        const fGifts = getFilteredData(data.gifts);
+        const allItems = [...fProds, ...fGifts].filter(p => p.isActive !== false);
 
         allItems.forEach(p => {
             const closing = getItemClosingStock(p);
@@ -2037,10 +2041,10 @@
             div.innerHTML = `
                 <div class="product-list-info">
                     <strong>${p.name} (${p.id})</strong>
-                    <span>Pack: ${p.pack} | Type: ${data.prods.includes(p) ? 'Product' : 'Gift'}</span>
+                    <span>Pack: ${p.pack} | Type: ${fProds.includes(p) ? 'Product' : 'Gift'}</span>
                 </div>
                 <div style="font-weight:bold; color:var(--teal); margin-right:10px;">Closing: ${closing}</div>
-                <input type="number" min="0" class="manual-qty-input" placeholder="0" max="${closing}" onchange="window.updateHandOverSelection('${p.id}', this.value, '${data.prods.includes(p) ? 'prod' : 'gift'}')">
+                <input type="number" min="0" class="manual-qty-input" placeholder="0" max="${closing}" onchange="window.updateHandOverSelection('${p.id}', this.value, '${fProds.includes(p) ? 'prod' : 'gift'}')">
             `;
             container.appendChild(div);
         });
@@ -2061,9 +2065,11 @@
         if(Object.keys(handOverSelections).length === 0) return showToast("Please add items.");
 
         const itemsArray = [];
+        const fProds = getFilteredData(data.prods);
+        const fGifts = getFilteredData(data.gifts);
         
         for (const [pid, val] of Object.entries(handOverSelections)) {
-            const sourceData = (val.type === 'gift') ? data.gifts : data.prods;
+            const sourceData = (val.type === 'gift') ? fGifts : fProds;
             const p = sourceData.find(x => x.id === pid);
             if(p) itemsArray.push({ ...p, issueQty: val.qty });
         }
@@ -2155,7 +2161,9 @@
         const id = document.getElementById('gen-mpo').value;
         const fMpos = getFilteredData(data.mpos).filter(m => m.isActive !== false);
         const fDas = getFilteredData(data.das);
-        const fProds = data.prods; 
+        
+        // FIX: Only show products belonging to the MPO's depot
+        const fProds = data.prods.filter(p => p.depotId === currentMPO?.depotId); 
 
         const details = document.getElementById('mpo-details');
         const daSel = document.getElementById('gen-da');
@@ -2251,7 +2259,9 @@
         const id = document.getElementById('gen-mpo-gift').value;
         const fMpos = getFilteredData(data.mpos).filter(m => m.isActive !== false);
         const fDas = getFilteredData(data.das);
-        const fGifts = data.gifts; 
+        
+        // FIX: Only show gifts belonging to the MPO's depot
+        const fGifts = data.gifts.filter(p => p.depotId === currentMPO?.depotId); 
         
         const details = document.getElementById('mpo-details-gift');
         const daSel = document.getElementById('gen-da-gift');
@@ -2363,7 +2373,11 @@
         const type = document.getElementById('manual-type-selector').value; 
         const fMpos = getFilteredData(data.mpos).filter(m => m.isActive !== false);
         const fDas = getFilteredData(data.das);
-        const sourceData = (type === 'gift') ? data.gifts : data.prods;
+        
+        // FIX: Filter items by MPO's depot
+        const fProds = data.prods.filter(p => p.depotId === currentMPO?.depotId);
+        const fGifts = data.gifts.filter(p => p.depotId === currentMPO?.depotId);
+        const sourceData = (type === 'gift') ? fGifts : fProds;
 
         const details = document.getElementById('manual-mpo-details');
         const daSel = document.getElementById('manual-da');
@@ -2436,7 +2450,12 @@
     window.generateManualChallan = function() {
         if(!currentMPO || Object.keys(manualSelections).length === 0) return;
         const type = document.getElementById('manual-type-selector').value; 
-        const fItems = (type === 'gift') ? data.gifts : data.prods;
+        
+        // FIX: Use filtered lists by depot
+        const fProds = data.prods.filter(p => p.depotId === currentMPO?.depotId);
+        const fGifts = data.gifts.filter(p => p.depotId === currentMPO?.depotId);
+        const fItems = (type === 'gift') ? fGifts : fProds;
+        
         const itemsArray = [];
         
         for (const [pid, qty] of Object.entries(manualSelections)) {
@@ -2502,8 +2521,10 @@
 
     window.generateChallan = function(type) {
         let itemsArray = [];
-        let fProds = data.prods; 
-        let fGifts = data.gifts; 
+        
+        // FIX: Filter by depot
+        const fProds = data.prods.filter(p => p.depotId === currentMPO?.depotId); 
+        const fGifts = data.gifts.filter(p => p.depotId === currentMPO?.depotId); 
 
         if(type === 'prod') {
             if(!currentMPO || selectedProducts.size === 0) return;
@@ -2776,7 +2797,7 @@
             return b.timestamp - a.timestamp;
         });
 
-        document.getElementById('challan-count-badge').innerText = `(Total: ${list.length})`;
+        document.getElementById('challan-count-badge').innerText =`(Total: ${list.length})`;
 
         const contentArea = document.getElementById('challan-content-area');
         const noMsg = document.getElementById('no-challan-msg');
@@ -2988,7 +3009,8 @@
                 deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('mpo','${m.key}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
             }
 
-            const catEditBtn = `<button class="btn btn-sm btn-cyan" onclick="window.openModal('editCategory','${m.key}')" title="Edit Categories"><i class="fa-solid fa-layer-group"></i></button>`;
+            // FIX: Call 'editMpoCategory' instead of 'editCategory' for MPOs
+            const catEditBtn = `<button class="btn btn-sm btn-cyan" onclick="window.openModal('editMpoCategory','${m.key}')" title="Edit Categories"><i class="fa-solid fa-layer-group"></i></button>`;
 
             mpoT.innerHTML += `
                 <tr>
@@ -3232,20 +3254,20 @@
             return; 
         }
         
-        // MPO Category Edit Modal
+        // FIX: MPO Category Edit Modal
         if (type === 'editMpoCategory') {
              const m = data.mpos.find(x => x.key === id);
              if (!m) return;
              document.getElementById('modal-title').innerText = `Edit Categories - ${m.name}`;
              container.innerHTML = `
-                <input type="hidden" name="id" value="${m.id}">
+                <input type="hidden" name="depotId" value="${m.depotId}">
                 <div class="form-group"><label>MPO Name</label><input type="text" value="${m.name}" readonly style="background-color: #f8f9fa; font-weight:bold;"></div>
                 <div style="display:flex; gap:10px;">
                     <div class="form-group" style="flex:1"><label style="color:var(--accent)">Category (Prod)</label><select name="categoryProd"><option value="A" ${m.categoryProd==='A'?'selected':''}>A</option><option value="B" ${m.categoryProd==='B'?'selected':''}>B</option><option value="C" ${m.categoryProd==='C'?'selected':''}>C</option><option value="D" ${m.categoryProd==='D'?'selected':''}>D</option><option value="E" ${m.categoryProd==='E'?'selected':''}>E</option></select></div>
                     <div class="form-group" style="flex:1"><label style="color:var(--purple)">Category (Gift)</label><select name="categoryGift"><option value="A" ${m.categoryGift==='A'?'selected':''}>A</option><option value="B" ${m.categoryGift==='B'?'selected':''}>B</option><option value="C" ${m.categoryGift==='C'?'selected':''}>C</option><option value="D" ${m.categoryGift==='D'?'selected':''}>D</option><option value="E" ${m.categoryGift==='E'?'selected':''}>E</option></select></div>
                 </div>
              `;
-             editType = 'saveMpoCategories';
+             editType = 'saveMpoCategories'; // Set specific edit type
              return;
         }
 
@@ -3387,6 +3409,7 @@
                 updateObj.qtyD = Number(form.qtyD.value);
                 updateObj.qtyE = Number(form.qtyE.value);
             } else if (editType === 'editMpoCategory') {
+                // FIX: Correctly update MPO categories
                 updateObj.categoryProd = form.categoryProd.value;
                 updateObj.categoryGift = form.categoryGift.value;
             }
@@ -3560,6 +3583,11 @@
 
     // --- STOCK LOGIC ---
     window.renderStockReport = function(fProds, fGifts, fChallans) {
+        // FIX: Apply filter for Admin View
+        if(!fProds) fProds = getFilteredData(data.prods);
+        if(!fGifts) fGifts = getFilteredData(data.gifts);
+        if(!fChallans) fChallans = getFilteredData(data.challans);
+
         const table = document.getElementById('stock-report-table');
         table.innerHTML = `<thead><tr><th>ID</th><th>Name</th><th>Pack</th><th>Unit</th><th>Opening</th><th>Received</th><th>Used</th><th>Closing</th></tr></thead>`;
         
@@ -3615,9 +3643,11 @@
     window.closeMonth = function() {
         if(!confirm('Are you sure you want to Close Month?\n\nThis will:\n1. Set Closing Stock (Opening + Received - Used) as new Opening Stock.\n2. Reset Monthly Received to 0.')) return;
         
-        const fProds = data.prods;
-        const fGifts = data.gifts;
+        // FIX: Apply filter for Admin
+        const fProds = getFilteredData(data.prods);
+        const fGifts = getFilteredData(data.gifts);
         const fChallans = getFilteredData(data.challans);
+        
         const currentMonth = new Date().toISOString().slice(0, 7);
 
         let monthlyUsage = {};
@@ -3679,9 +3709,11 @@
     };
 
     window.exportStockToExcel = function() {
-        const fProds = data.prods; 
-        const fGifts = data.gifts;
+        // FIX: Apply filter for Admin
+        const fProds = getFilteredData(data.prods); 
+        const fGifts = getFilteredData(data.gifts);
         const fChallans = getFilteredData(data.challans);
+        
         const currentMonth = new Date().toISOString().slice(0, 7);
 
         let monthlyUsage = {};
@@ -3745,9 +3777,11 @@
         document.getElementById('sp-depot').innerText = depotText || 'ALL';
         document.getElementById('sp-date').innerText = new Date().toLocaleDateString('en-GB');
 
-        const fProds = data.prods; 
-        const fGifts = data.gifts;
+        // FIX: Apply filter for Admin
+        const fProds = getFilteredData(data.prods); 
+        const fGifts = getFilteredData(data.gifts);
         const fChallans = getFilteredData(data.challans);
+        
         const currentMonth = new Date().toISOString().slice(0, 7);
 
         let monthlyUsage = {};
