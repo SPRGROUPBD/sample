@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sample Management System v2.1</title>
+    <title>Sample Management System v2.2 (Depot Wise)</title>
     
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -129,7 +129,7 @@
         .section.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* DASHBOARD FOOTER (NEW) */
+        /* DASHBOARD FOOTER */
         .dashboard-footer {
             display: flex;
             justify-content: space-between;
@@ -505,7 +505,7 @@
             <i class="fa-solid fa-boxes-stacked"></i>
         </div>
         <h2>Sample Managment System</h2>
-        <p style="color:#7f8c8d; margin-bottom: 20px;">v2.1 | Role Based Access</p>
+        <p style="color:#7f8c8d; margin-bottom: 20px;">v2.2 | Depot Wise Architecture</p>
         
         <form id="login-form">
             <input type="text" name="username" class="login-input" placeholder="Username / ID" required autocomplete="off">
@@ -520,7 +520,7 @@
 <header>
     <div class="logo">
         <i class="fa-solid fa-layer-group"></i> 
-        <span>Sample Managment System</span>
+        <span>SMS v2.2</span>
     </div>
     
     <!-- DESKTOP NAV -->
@@ -606,7 +606,7 @@
     <section id="dashboard" class="section active">
         <h2><i class="fa-solid fa-tachometer-alt"></i> Dashboard Overview</h2>
         
-        <!-- NEW DASHBOARD FOOTER -->
+        <!-- DASHBOARD FOOTER -->
         <div class="dashboard-footer">
             <div class="footer-item">
                 <i class="fa-solid fa-user-circle"></i>
@@ -615,7 +615,7 @@
             </div>
             <div class="footer-item">
                 <i class="fa-solid fa-warehouse"></i>
-                <span>Assigned Depot:</span>
+                <span>Depot Scope:</span>
                 <strong id="dash-depot-id">Loading...</strong>
             </div>
         </div>
@@ -1141,7 +1141,7 @@
         <div style="background: #e8f4fd; padding: 15px; border-radius:5px; margin-bottom: 15px; font-size: 0.9rem;">
             <strong>Instructions:</strong><br>
             1. The first row of your Excel file must contain Headers.<br>
-            2. <strong>MPO Headers:</strong> ID, Name, Territory, Area, Region, <strong>CategoryProd</strong>, <strong>CategoryGift</strong>, Sales, DepotId (Optional), isActive (Optional - true/false)<br>
+            2. <strong>MPO Headers:</strong> ID, Name, Territory, Area, Region, <strong>CategoryProd</strong>, <strong>CategoryGift</strong>, Sales, isActive (Optional - true/false).<br>
             3. <strong>Product/Gift Headers:</strong> ID, Name, Pack, Unit, QtyA, QtyB, QtyC, QtyD, QtyE, ReceivedStock, DepotId (Optional). (Note: For Products, ID is your Manual ID like 'ASL').
         </div>
 
@@ -1448,13 +1448,6 @@
 
     window.changeDepotFilter = function() {
         currentDepotFilter = document.getElementById('global-depot-filter').value;
-        productListeners.forEach(unsub => unsub());
-        productListeners = [];
-        giftListeners.forEach(unsub => unsub());
-        giftListeners = [];
-        initProductListeners();
-        initGiftListeners(); 
-        // Re-render UI to update Dashboard Footer for Admin
         updateUI();
     };
 
@@ -1480,6 +1473,7 @@
         return result;
     }
 
+    // --- DEPOT WISE DATA LISTENERS (REVISED v2.2) ---
     function initDataListeners() {
         document.getElementById('loader').style.display = 'block';
 
@@ -1487,167 +1481,190 @@
         onValue(ref(db, 'settings'), (snapshot) => {
             if(snapshot.exists()) {
                 appSettings = snapshot.val();
-                // Update UI Toggles if visible
                 if(document.getElementById('perm-dic-delete')) {
                     document.getElementById('perm-dic-delete').checked = appSettings.allowDeleteDIC || false;
                     document.getElementById('perm-user-delete').checked = appSettings.allowDeleteUser || false;
                 }
             }
-            updateUI(); // Re-render tables to update button visibility
+            updateUI(); 
         });
 
-        const listen = (path, key) => {
-            onValue(ref(db, path), (snapshot) => {
-                data[key] = [];
-                if(snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        const item = childSnapshot.val();
-                        item.key = childSnapshot.key; 
-                        data[key].push(item);
-                        if(item.depotId) allDepots.add(item.depotId);
+        // LISTEN FOR USERS (Global)
+        onValue(ref(db, 'users'), (snapshot) => {
+            data.users = [];
+            if(snapshot.exists()) {
+                snapshot.forEach((childSnapshot) => {
+                    const item = childSnapshot.val();
+                    item.key = childSnapshot.key; 
+                    data.users.push(item);
+                });
+            }
+            updateUI();
+        });
+
+        // DEPOT WISE LISTENERS
+        if (currentUser.role === 'admin') {
+            // ADMIN: Listens to the 'depots' root and aggregates data
+            onValue(ref(db, 'depots'), (snapshot) => {
+                data.mpos = []; data.das = []; data.prods = []; data.gifts = []; data.challans = []; data.handovers = [];
+                allDepots.clear();
+
+                if (snapshot.exists()) {
+                    snapshot.forEach((depotSnapshot) => {
+                        const depotId = depotSnapshot.key;
+                        allDepots.add(depotId);
+
+                        // Aggregate MPOs
+                        const mposSnap = depotSnapshot.child('mpos');
+                        if(mposSnap.exists()) {
+                            mposSnap.forEach(mpoSnap => {
+                                const m = mpoSnap.val();
+                                m.key = mpoSnap.key;
+                                m.depotId = depotId;
+                                data.mpos.push(m);
+                            });
+                        }
+
+                        // Aggregate DAs
+                        const dasSnap = depotSnapshot.child('das');
+                        if(dasSnap.exists()) {
+                            dasSnap.forEach(daSnap => {
+                                const d = daSnap.val();
+                                d.key = daSnap.key;
+                                d.depotId = depotId;
+                                data.das.push(d);
+                            });
+                        }
+
+                        // Aggregate Products
+                        const prodsSnap = depotSnapshot.child('products');
+                        if(prodsSnap.exists()) {
+                            prodsSnap.forEach(prodSnap => {
+                                const p = prodSnap.val();
+                                p.key = prodSnap.key;
+                                p.id = prodSnap.key; // For compatibility
+                                p.depotId = depotId;
+                                data.prods.push(p);
+                            });
+                        }
+
+                        // Aggregate Gifts
+                        const giftsSnap = depotSnapshot.child('gifts');
+                        if(giftsSnap.exists()) {
+                            giftsSnap.forEach(giftSnap => {
+                                const g = giftSnap.val();
+                                g.key = giftSnap.key;
+                                g.id = giftSnap.key;
+                                g.depotId = depotId;
+                                data.gifts.push(g);
+                            });
+                        }
+
+                        // Aggregate Challans
+                        const chalSnap = depotSnapshot.child('challans');
+                        if(chalSnap.exists()) {
+                            chalSnap.forEach(cSnap => {
+                                const c = cSnap.val();
+                                c.key = cSnap.key;
+                                c.depotId = depotId;
+                                data.challans.push(c);
+                            });
+                        }
+
+                        // Aggregate Handovers
+                        const hoSnap = depotSnapshot.child('handovers');
+                        if(hoSnap.exists()) {
+                            hoSnap.forEach(hSnap => {
+                                const h = hSnap.val();
+                                h.key = hSnap.key;
+                                h.depotId = depotId;
+                                data.handovers.push(h);
+                            });
+                        }
                     });
                 }
                 updateUI();
             });
-        };
-
-        listen('mpos', 'mpos');
-        listen('das', 'das');
-        listen('challans', 'challans');
-        listen('users', 'users');
-        listen('handovers', 'handovers');
-
-        initProductListeners();
-        initGiftListeners();
-    }
-
-    function initProductListeners() {
-        data.prods = [];
-
-        if (currentUser.role === 'user' || currentUser.role === 'dic') {
+        } else {
+            // USER/DIC: Listens strictly to their depot ID
             const userDepotId = currentUser.depotId;
-            const prodRef = ref(db, `depots/${userDepotId}/products`);
-            const unsub = onValue(prodRef, (snapshot) => {
-                if(!currentUser) return;
-                data.prods = [];
+            if(!userDepotId) {
+                alert("Error: No Depot assigned to this user.");
+                location.reload();
+                return;
+            }
+
+            const depotRef = ref(db, `depots/${userDepotId}`);
+            onValue(depotRef, (snapshot) => {
+                data.mpos = []; data.das = []; data.prods = []; data.gifts = []; data.challans = []; data.handovers = [];
+                allDepots.add(userDepotId);
+
                 if(snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        const p = childSnapshot.val();
-                        p.key = childSnapshot.key;
-                        p.id = childSnapshot.key;
-                        p.depotId = userDepotId;
-                        data.prods.push(p);
-                    });
-                }
-                updateUI();
-            });
-            productListeners.push(unsub);
-        } else if (currentUser.role === 'admin') {
-            if (currentDepotFilter === 'ALL') {
-                const depotsRef = ref(db, 'depots');
-                const unsubDepots = onValue(depotsRef, (snapshot) => {
-                    data.prods = [];
-                    if(snapshot.exists()) {
-                        snapshot.forEach((depotSnapshot) => {
-                            const depotId = depotSnapshot.key;
-                            const productsSnap = depotSnapshot.child('products');
-                            if(productsSnap.exists()) {
-                                productsSnap.forEach((prodSnap) => {
-                                    const p = prodSnap.val();
-                                    p.key = prodSnap.key;
-                                    p.id = prodSnap.key;
-                                    p.depotId = depotId;
-                                    data.prods.push(p);
-                                });
-                            }
+                    // MPOs
+                    const mposSnap = snapshot.child('mpos');
+                    if(mposSnap.exists()) {
+                        mposSnap.forEach(mpoSnap => {
+                            const m = mpoSnap.val();
+                            m.key = mpoSnap.key;
+                            m.depotId = userDepotId;
+                            data.mpos.push(m);
                         });
                     }
-                    updateUI();
-                });
-                productListeners.push(unsubDepots);
-            } else {
-                const specificDepotId = currentDepotFilter;
-                const prodRef = ref(db, `depots/${specificDepotId}/products`);
-                const unsub = onValue(prodRef, (snapshot) => {
-                    data.prods = [];
-                    if(snapshot.exists()) {
-                        snapshot.forEach((childSnapshot) => {
-                            const p = childSnapshot.val();
-                            p.key = childSnapshot.key;
-                            p.id = childSnapshot.key;
-                            p.depotId = specificDepotId;
+                    // DAs
+                    const dasSnap = snapshot.child('das');
+                    if(dasSnap.exists()) {
+                        dasSnap.forEach(daSnap => {
+                            const d = daSnap.val();
+                            d.key = daSnap.key;
+                            d.depotId = userDepotId;
+                            data.das.push(d);
+                        });
+                    }
+                    // Products
+                    const prodsSnap = snapshot.child('products');
+                    if(prodsSnap.exists()) {
+                        prodsSnap.forEach(prodSnap => {
+                            const p = prodSnap.val();
+                            p.key = prodSnap.key;
+                            p.id = prodSnap.key;
+                            p.depotId = userDepotId;
                             data.prods.push(p);
                         });
                     }
-                    updateUI();
-                });
-                productListeners.push(unsub);
-            }
-        }
-    }
-
-    function initGiftListeners() {
-        data.gifts = [];
-
-        if (currentUser.role === 'user' || currentUser.role === 'dic') {
-            const userDepotId = currentUser.depotId;
-            const giftRef = ref(db, `depots/${userDepotId}/gifts`);
-            const unsub = onValue(giftRef, (snapshot) => {
-                if(!currentUser) return;
-                data.gifts = [];
-                if(snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        const p = childSnapshot.val();
-                        p.key = childSnapshot.key;
-                        p.id = childSnapshot.key;
-                        p.depotId = userDepotId;
-                        data.gifts.push(p);
-                    });
+                    // Gifts
+                    const giftsSnap = snapshot.child('gifts');
+                    if(giftsSnap.exists()) {
+                        giftsSnap.forEach(giftSnap => {
+                            const g = giftSnap.val();
+                            g.key = giftSnap.key;
+                            g.id = giftSnap.key;
+                            g.depotId = userDepotId;
+                            data.gifts.push(g);
+                        });
+                    }
+                    // Challans
+                    const chalSnap = snapshot.child('challans');
+                    if(chalSnap.exists()) {
+                        chalSnap.forEach(cSnap => {
+                            const c = cSnap.val();
+                            c.key = cSnap.key;
+                            c.depotId = userDepotId;
+                            data.challans.push(c);
+                        });
+                    }
+                    // Handovers
+                    const hoSnap = snapshot.child('handovers');
+                    if(hoSnap.exists()) {
+                        hoSnap.forEach(hSnap => {
+                            const h = hSnap.val();
+                            h.key = hSnap.key;
+                            h.depotId = userDepotId;
+                            data.handovers.push(h);
+                        });
+                    }
                 }
                 updateUI();
             });
-            giftListeners.push(unsub);
-        } else if (currentUser.role === 'admin') {
-            if (currentDepotFilter === 'ALL') {
-                const depotsRef = ref(db, 'depots');
-                const unsubDepots = onValue(depotsRef, (snapshot) => {
-                    data.gifts = [];
-                    if(snapshot.exists()) {
-                        snapshot.forEach((depotSnapshot) => {
-                            const depotId = depotSnapshot.key;
-                            const giftsSnap = depotSnapshot.child('gifts');
-                            if(giftsSnap.exists()) {
-                                giftsSnap.forEach((giftSnap) => {
-                                    const p = giftSnap.val();
-                                    p.key = giftSnap.key;
-                                    p.id = giftSnap.key;
-                                    p.depotId = depotId;
-                                    data.gifts.push(p);
-                                });
-                            }
-                        });
-                    }
-                    updateUI();
-                });
-                giftListeners.push(unsubDepots);
-            } else {
-                const specificDepotId = currentDepotFilter;
-                const giftRef = ref(db, `depots/${specificDepotId}/gifts`);
-                const unsub = onValue(giftRef, (snapshot) => {
-                    data.gifts = [];
-                    if(snapshot.exists()) {
-                        snapshot.forEach((childSnapshot) => {
-                            const p = childSnapshot.val();
-                            p.key = childSnapshot.key;
-                            p.id = childSnapshot.key;
-                            p.depotId = specificDepotId;
-                            data.gifts.push(p);
-                        });
-                    }
-                    updateUI();
-                });
-                giftListeners.push(unsub);
-            }
         }
     }
 
@@ -1669,8 +1686,8 @@
 
         const fMpos = getFilteredData(data.mpos);
         const fDas = getFilteredData(data.das);
-        const fProds = data.prods; 
-        const fGifts = data.gifts; 
+        const fProds = data.prods; // Already filtered by listener for users
+        const fGifts = data.gifts; // Already filtered by listener for users
         const fChallans = getFilteredData(data.challans);
         const fUsers = currentUser.role === 'admin' ? data.users : [];
 
@@ -1777,7 +1794,6 @@
             allowDeleteUser: allowUser
         }).then(() => {
             showToast("Permissions Updated");
-            // Re-render tables immediately to show/hide delete buttons
             window.renderMgmtTables(); 
         }).catch(err => showToast("Error updating permissions"));
     };
@@ -2090,7 +2106,8 @@
             depotId: assignedDepotId
         };
 
-        push(ref(db, 'handovers'), newChallan).then(() => {
+        // Save to Depot Wise Path
+        push(ref(db, `depots/${assignedDepotId}/handovers`), newChallan).then(() => {
             showToast("Hand Over Challan Generated!");
             
             window.printHandOverChallan(newChallan);
@@ -2474,7 +2491,8 @@
             depotId: assignedDepotId
         };
 
-        push(ref(db, 'challans'), newChallan).then(() => {
+        // Save to Depot Wise Path
+        push(ref(db, `depots/${assignedDepotId}/challans`), newChallan).then(() => {
             showToast("Manual Challan Generated & Saved!");
             manualSelections = {};
             updateCount('manual');
@@ -2555,7 +2573,8 @@
             depotId: assignedDepotId
         };
 
-        push(ref(db, 'challans'), newChallan).then(() => {
+        // Save to Depot Wise Path
+        push(ref(db, `depots/${assignedDepotId}/challans`), newChallan).then(() => {
             showToast("Challan Generated & Saved!");
             if(type === 'gift') { selectedGifts.clear(); updateCount('gift'); } 
             else { selectedProducts.clear(); updateCount('prod'); }
@@ -2688,7 +2707,6 @@
         window.print();
     };
 
-    // UPDATED: Challan History with Cat(Prod) and Cat(Gift)
     window.renderChallans = function(fChallans, fMpos) {
         if (!fChallans) fChallans = getFilteredData(data.challans);
         if (!fMpos) fMpos = getFilteredData(data.mpos);
@@ -2771,7 +2789,6 @@
         } else {
             noMsg.style.display = 'none';
 
-            // Helper to generate table rows
             const generateTableRows = (challanList) => {
                 let rows = '';
                 challanList.forEach(c => {
@@ -2848,7 +2865,6 @@
                 contentArea.innerHTML = html;
 
             } else {
-                // MONTH WISE VIEW
                 const groupedByMonth = {};
                 list.forEach(c => {
                     const dateObj = new Date(c.timestamp);
@@ -2905,9 +2921,14 @@
         
         if(!confirm('Delete this record?')) return;
         
-        let path = '';
-        if (type === 'Hand Over') path = 'handovers/' + key;
-        else path = 'challans/' + key;
+        // Find the record first to get the depotId
+        let record = data.challans.find(x => x.key === key);
+        if(!record) record = data.handovers.find(x => x.key === key);
+        if(!record) return;
+
+        const path = type === 'Hand Over' 
+            ? `depots/${record.depotId}/handovers/${key}` 
+            : `depots/${record.depotId}/challans/${key}`;
 
         remove(ref(db, path)).then(() => showToast("Record Deleted"));
     };
@@ -2957,19 +2978,17 @@
             const isMpoActive = (m.isActive !== false);
             const statusBadge = isMpoActive ? '<span style="color:var(--success); font-weight:bold;">Active</span>' : '<span style="color:var(--danger); font-weight:bold;">Inactive</span>';
             
-            // Toggle Button
-            const toggleBtn = `<button class='btn btn-sm ${isMpoActive ? 'btn-warning' : 'btn-success'}' onclick='window.toggleStatus("mpo", "${m.id}", ${!isMpoActive})' title='${isMpoActive ? 'Deactivate' : 'Activate'}'>
+            const toggleBtn = `<button class='btn btn-sm ${isMpoActive ? 'btn-warning' : 'btn-success'}' onclick='window.toggleStatus("mpo", "${m.key}", ${!isMpoActive})' title='${isMpoActive ? 'Deactivate' : 'Activate'}'>
                 <i class='fa-solid fa-${isMpoActive ? 'toggle-on' : 'toggle-off'}'></i>
             </button>`;
 
-            let editBtn = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('mpo','${m.id}')"><i class="fa-solid fa-pen"></i></button>`;
+            let editBtn = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('mpo','${m.key}')"><i class="fa-solid fa-pen"></i></button>`;
             let deleteBtn = '';
             if (canDelete) {
-                deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('mpo','${m.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
+                deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('mpo','${m.key}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
             }
 
-            // Category Edit Button
-            const catEditBtn = `<button class="btn btn-sm btn-cyan" onclick="windowopenModal('editCategory','${m.id}')" title="Edit Categories"><i class="fa-solid fa-layer-group"></i></button>`;
+            const catEditBtn = `<button class="btn btn-sm btn-cyan" onclick="window.openModal('editCategory','${m.key}')" title="Edit Categories"><i class="fa-solid fa-layer-group"></i></button>`;
 
             mpoT.innerHTML += `
                 <tr>
@@ -3010,16 +3029,16 @@
             const isItemActive = (p.isActive !== false && p.isActive !== 'false');
             const statusBadge = isItemActive ? '<span style="color:var(--success); font-weight:bold;">Active</span>' : '<span style="color:var(--danger); font-weight:bold;">Inactive</span>';
             
-            const toggleBtn = `<button class='btn btn-sm ${isItemActive ? 'btn-warning' : 'btn-success'}' onclick='window.toggleStatus("prod", "${p.id}", ${!isItemActive})'><i class='fa-solid fa-${isItemActive ? 'toggle-on' : 'toggle-off'}'></i></button>`;
+            const toggleBtn = `<button class='btn btn-sm ${isItemActive ? 'btn-warning' : 'btn-success'}' onclick='window.toggleStatus("prod", "${p.key}", ${!isItemActive})'><i class='fa-solid fa-${isItemActive ? 'toggle-on' : 'toggle-off'}'></i></button>`;
             
             let actionBtns = `
-                <button class="btn btn-sm btn-cyan" onclick="window.openModal('editCategory','${p.id}')" title="Edit Category"><i class="fa-solid fa-layer-group"></i></button>
-                <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('prod','${p.id}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
-                <button class="btn btn-sm btn-secondary" onclick="window.editItem('prod','${p.id}')"><i class="fa-solid fa-pen"></i></button>`;
+                <button class="btn btn-sm btn-cyan" onclick="window.openModal('editCategory','${p.key}')" title="Edit Category"><i class="fa-solid fa-layer-group"></i></button>
+                <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('prod','${p.key}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
+                <button class="btn btn-sm btn-secondary" onclick="window.editItem('prod','${p.key}')"><i class="fa-solid fa-pen"></i></button>`;
             
             let deleteBtn = '';
             if (canDelete) {
-                deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('prod','${p.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
+                deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('prod','${p.key}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
             }
 
             prodT.innerHTML += `
@@ -3046,16 +3065,16 @@
             const isItemActive = (p.isActive !== false && p.isActive !== 'false');
             const statusBadge = isItemActive ? '<span style="color:var(--success); font-weight:bold;">Active</span>' : '<span style="color:var(--danger); font-weight:bold;">Inactive</span>';
             
-            const toggleBtn = `<button class='btn btn-sm ${isItemActive ? 'btn-warning' : 'btn-success'}' onclick='window.toggleStatus("gift", "${p.id}", ${!isItemActive})'><i class='fa-solid fa-${isItemActive ? 'toggle-on' : 'toggle-off'}'></i></button>`;
+            const toggleBtn = `<button class='btn btn-sm ${isItemActive ? 'btn-warning' : 'btn-success'}' onclick='window.toggleStatus("gift", "${p.key}", ${!isItemActive})'><i class='fa-solid fa-${isItemActive ? 'toggle-on' : 'toggle-off'}'></i></button>`;
             
             let actionBtns = `
-                <button class="btn btn-sm btn-purple" onclick="window.openModal('editGiftCategory','${p.id}')" title="Edit Category"><i class="fa-solid fa-layer-group"></i></button>
-                <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('gift','${p.id}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
-                <button class="btn btn-sm btn-secondary" onclick="window.editItem('gift','${p.id}')"><i class="fa-solid fa-pen"></i></button>`;
+                <button class="btn btn-sm btn-purple" onclick="window.openModal('editGiftCategory','${p.key}')" title="Edit Category"><i class="fa-solid fa-layer-group"></i></button>
+                <button class="btn btn-sm btn-warning" onclick="window.openAddStockModal('gift','${p.key}')" title="Add Stock"><i class="fa-solid fa-plus"></i></button>
+                <button class="btn btn-sm btn-secondary" onclick="window.editItem('gift','${p.key}')"><i class="fa-solid fa-pen"></i></button>`;
             
             let deleteBtn = '';
             if (canDelete) {
-                deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('gift','${p.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
+                deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('gift','${p.key}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
             }
 
             giftT.innerHTML += `
@@ -3074,13 +3093,13 @@
              const isItemActive = (d.isActive !== false);
             const statusBadge = isItemActive ? '<span style="color:var(--success); font-weight:bold;">Active</span>' : '<span style="color:var(--danger); font-weight:bold;">Inactive</span>';
             
-            const toggleBtn = `<button class='btn btn-sm ${isItemActive ? 'btn-warning' : 'btn-success'}' onclick='window.toggleStatus("da", "${d.id}", ${!isItemActive})'><i class='fa-solid fa-${isItemActive ? 'toggle-on' : 'toggle-off'}'></i></button>`;
+            const toggleBtn = `<button class='btn btn-sm ${isItemActive ? 'btn-warning' : 'btn-success'}' onclick='window.toggleStatus("da", "${d.key}", ${!isItemActive})'><i class='fa-solid fa-${isItemActive ? 'toggle-on' : 'toggle-off'}'></i></button>`;
             
-            let editBtn = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('da','${d.id}')"><i class="fa-solid fa-pen"></i></button>`;
+            let editBtn = `<button class="btn btn-sm btn-secondary" onclick="window.editItem('da','${d.key}')"><i class="fa-solid fa-pen"></i></button>`;
             
             let deleteBtn = '';
             if (canDelete) {
-                deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('da','${d.id}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
+                deleteBtn = `<button class="btn btn-sm btn-danger" onclick="window.deleteItem('da','${d.key}')" title="Delete"><i class="fa-solid fa-trash"></i></button>`;
             }
             
             daT.innerHTML += `<tr><td>${d.id}</td><td>${d.name}</td><td>${d.phone || '-'}</td><td>${d.depotId || '<span style="color:red">Missing</span>'}</td>
@@ -3105,29 +3124,30 @@
 
     // NEW: Toggle Status Function
     window.toggleStatus = function(type, id, newState) {
-        let path = '';
-        if(type === 'mpo') path = 'mpos/' + id;
-        else if(type === 'da') path = 'das/' + id;
-        else if(type === 'prod') {
-            const item = data.prods.find(p => p.id === id);
-            if(item) path = `depots/${item.depotId}/products/${id}`;
-        }
-        else if(type === 'gift') {
-            const item = data.gifts.find(g => g.id === id);
-            if(item) path = `depots/${item.depotId}/gifts/${id}`;
-        }
+        // Find item to get depotId
+        let item, path = '';
+        
+        if(type === 'mpo') item = data.mpos.find(x => x.key === id);
+        else if(type === 'da') item = data.das.find(x => x.key === id);
+        else if(type === 'prod') item = data.prods.find(x => x.key === id);
+        else if(type === 'gift') item = data.gifts.find(x => x.key === id);
 
-        if(path) {
-            update(ref(db, path), { isActive: newState })
-                .then(() => showToast(`Status updated to ${newState ? 'Active' : 'Inactive'}`))
-                .catch(err => showToast("Error updating status: " + err.message));
-        }
+        if(!item || !item.depotId) return showToast("Error: Cannot determine depot path");
+
+        if(type === 'mpo') path = `depots/${item.depotId}/mpos/${id}`;
+        else if(type === 'da') path = `depots/${item.depotId}/das/${id}`;
+        else if(type === 'prod') path = `depots/${item.depotId}/products/${id}`;
+        else if(type === 'gift') path = `depots/${item.depotId}/gifts/${id}`;
+
+        update(ref(db, path), { isActive: newState })
+            .then(() => showToast(`Status updated to ${newState ? 'Active' : 'Inactive'}`))
+            .catch(err => showToast("Error updating status: " + err.message));
     };
 
     window.openAddStockModal = function(type, id) {
         let item;
-        if (type === 'prod') item = data.prods.find(p => p.id === id);
-        else item = data.gifts.find(g => g.id === id);
+        if (type === 'prod') item = data.prods.find(p => p.key === id);
+        else item = data.gifts.find(g => g.key === id);
         
         if (!item) return;
 
@@ -3177,9 +3197,9 @@
         };
 
         if (type === 'editCategory') {
-            const p = data.prods.find(x => x.id === id);
+            const p = data.prods.find(x => x.key === id);
             if (!p) return;
-            document.getElementById('modal-title').innerText = `Edit Categories - ${p.name}`;
+                        document.getElementById('modal-title').innerText = `Edit Categories - ${p.name}`;
             container.innerHTML = `
                 <input type="hidden" name="depotId" value="${p.depotId}">
                 <div class="form-group"><label>Product Name</label><input type="text" value="${p.name}" readonly style="background-color: #f8f9fa; font-weight:bold;"></div>
@@ -3195,7 +3215,7 @@
         }
 
         if (type === 'editGiftCategory') {
-            const p = data.gifts.find(x => x.id === id);
+            const p = data.gifts.find(x => x.key === id);
             if (!p) return;
             document.getElementById('modal-title').innerText = `Edit Categories - ${p.name}`;
             container.innerHTML = `
@@ -3214,7 +3234,7 @@
         
         // MPO Category Edit Modal
         if (type === 'editMpoCategory') {
-             const m = data.mpos.find(x => x.id === id);
+             const m = data.mpos.find(x => x.key === id);
              if (!m) return;
              document.getElementById('modal-title').innerText = `Edit Categories - ${m.name}`;
              container.innerHTML = `
@@ -3292,8 +3312,8 @@
     window.editItem = function(type, id) {
         let item;
         if(type === 'user') item = data.users.find(x => x.key === id);
-        else if (type === 'gift') item = data.gifts.find(x => x.id === id);
-        else item = (type==='mpo'?data.mpos:type==='da'?data.das:data.prods).find(x => x.id === id);
+        else if (type === 'gift') item = data.gifts.find(x => x.key === id);
+        else item = (type==='mpo'?data.mpos:type==='da'?data.das:data.prods).find(x => x.key === id);
         
         if(!item) return;
 
@@ -3314,19 +3334,30 @@
         
         if(!confirm('Delete this record?')) return;
         let path = '';
+        
+        // DEPOT WISE DELETION LOGIC
         if(type === 'user') path = 'users/' + id;
-        else if(type === 'mpo') path = 'mpos/' + id;
-        else if(type === 'da') path = 'das/' + id;
-        else if(type === 'prod') {
-            const prod = data.prods.find(p => p.id === id);
+        else if (type === 'mpo') {
+            const item = data.mpos.find(x => x.key === id);
+            if(!item || !item.depotId) return showToast("Error: Cannot find depot path");
+            path = `depots/${item.depotId}/mpos/${id}`;
+        } 
+        else if (type === 'da') {
+            const item = data.das.find(x => x.key === id);
+            if(!item || !item.depotId) return showToast("Error: Cannot find depot path");
+            path = `depots/${item.depotId}/das/${id}`;
+        }
+        else if (type === 'prod') {
+            const prod = data.prods.find(p => p.key === id);
             if(!prod || !prod.depotId) return showToast("Error: Cannot find product path");
             path = `depots/${prod.depotId}/products/${id}`;
         }
-        else if(type === 'gift') {
-            const gift = data.gifts.find(g => g.id === id);
+        else if (type === 'gift') {
+            const gift = data.gifts.find(g => g.key === id);
             if(!gift || !gift.depotId) return showToast("Error: Cannot find gift path");
             path = `depots/${gift.depotId}/gifts/${id}`;
         }
+        
         remove(ref(db, path)).then(() => showToast("Record Deleted"));
     };
 
@@ -3341,9 +3372,9 @@
         if(editType === 'editCategory' || editType === 'editGiftCategory' || editType === 'editMpoCategory') {
             const depotId = obj.depotId;
             if(!depotId && editType === 'editMpoCategory') {
-                // MPO doesn't have depotId in the modal form hidden field in this case, 
-                // but it is passed in 'id' which is the MPO ID, and we have it in data.
-                // For MPO, we update 'mpos/{id}'
+                const mpo = data.mpos.find(m => m.key === editId);
+                if(mpo) obj.depotId = mpo.depotId;
+                else return showToast("Error: Missing Depot");
             } else if (!depotId && (editType === 'editCategory' || editType === 'editGiftCategory')) {
                  return showToast("Depot ID missing");
             }
@@ -3363,7 +3394,7 @@
             let path = '';
             if(editType === 'editCategory') path = `depots/${depotId}/products/${editId}`;
             else if(editType === 'editGiftCategory') path = `depots/${depotId}/gifts/${editId}`;
-            else if(editType === 'editMpoCategory') path = `mpos/${editId}`;
+            else if(editType === 'editMpoCategory') path = `depots/${depotId}/mpos/${editId}`;
 
             update(ref(db, path), updateObj).then(() => { showToast("Categories Updated"); closeModal(); }).catch(err => showToast("Error: " + err.message));
             return; 
@@ -3375,8 +3406,8 @@
             const type = obj.itemType; 
             
             let item;
-            if (type === 'prod') item = data.prods.find(p => p.id === editId);
-            else item = data.gifts.find(g => g.id === editId);
+            if (type === 'prod') item = data.prods.find(p => p.key === editId);
+            else item = data.gifts.find(g => g.key === editId);
             
             if(!item || addedStock <= 0) return showToast("Invalid input");
             
@@ -3415,8 +3446,8 @@
 
         let path = '';
         if(editType === 'user') path = 'users/' + (editId || Date.now());
-        else if(editType === 'mpo') path = 'mpos/' + (editId || obj.id);
-        else if(editType === 'da') path = `das/${(editId || obj.id)}`;
+        else if(editType === 'mpo') path = `depots/${obj.depotId}/mpos/${(editId || obj.id)}`;
+        else if(editType === 'da') path = `depots/${obj.depotId}/das/${(editId || obj.id)}`;
 
         set(ref(db, path), obj).then(() => { showToast("Saved Successfully"); closeModal(); }).catch(err => showToast("Error Saving: " + err.message));
     };
@@ -3487,28 +3518,31 @@
                     const id = row['ID'] || row['id'];
                     if(!id) continue;
                     
+                    // DEPOT WISE UPLOAD: Use row's depotId or current user's depotId
+                    const targetDepotId = (row['DepotId'] || row['depotId']) || currentDepot;
+
                     if(uploadType === 'prod') {
                         const item = {
                             name: row['Name'] || row['name'], pack: row['Pack'] || row['pack'], unit: row['Unit'] || row['unit'],
                             qtyA: Number(row['QtyA'] || 0), qtyB: Number(row['QtyB'] || 0), qtyC: Number(row['QtyC'] || 0), qtyD: Number(row['QtyD'] || 0), qtyE: Number(row['QtyE'] || 0),
                             receivedStock: Number(row['ReceivedStock'] || 0), receivedThisMonth: Number(row['ReceivedThisMonth'] || 0), openingStock: Number(row['OpeningStock'] || 0),
-                            depotId: (row['DepotId'] || row['depotId']) || currentDepot, isActive: row['isActive'] !== false, id: id
+                            depotId: targetDepotId, isActive: row['isActive'] !== false, id: id
                         };
-                        await set(ref(db, `depots/${item.depotId}/products/${id}`), item);
+                        await set(ref(db, `depots/${targetDepotId}/products/${id}`), item);
                     } else if (uploadType === 'gift') {
                          const item = {
                             name: row['Name'] || row['name'], pack: row['Pack'] || row['pack'], unit: row['Unit'] || row['unit'],
                             qtyA: Number(row['QtyA'] || 0), qtyB: Number(row['QtyB'] || 0), qtyC: Number(row['QtyC'] || 0), qtyD: Number(row['QtyD'] || 0), qtyE: Number(row['QtyE'] || 0),
-                            depotId: (row['DepotId'] || row['depotId']) || currentDepot, isActive: row['isActive'] !== false, id: id
+                            depotId: targetDepotId, isActive: row['isActive'] !== false, id: id
                         };
-                        await set(ref(db, `depots/${item.depotId}/gifts/${id}`), item);
+                        await set(ref(db, `depots/${targetDepotId}/gifts/${id}`), item);
                     } else if (uploadType === 'mpo') {
                          const item = {
                             id: id, name: row['Name'] || row['name'], territory: row['Territory'] || row['territory'], area: row['Area'] || row['area'] || '', region: row['Region'] || row['region'] || '',
                             categoryProd: row['CategoryProd'] || row['categoryProd'], categoryGift: row['CategoryGift'] || row['categoryGift'],
-                            sales: Number(row['Sales'] || 0), depotId: (row['DepotId'] || row['depotId']) || currentDepot, isActive: row['isActive'] !== false
+                            sales: Number(row['Sales'] || 0), depotId: targetDepotId, isActive: row['isActive'] !== false
                         };
-                        await set(ref(db, `mpos/${id}`), item);
+                        await set(ref(db, `depots/${targetDepotId}/mpos/${id}`), item);
                     }
                     count++;
                 }
@@ -3630,6 +3664,7 @@
                 isActive: p.isActive
             };
 
+            // DEPOT WISE UPDATE PATH
             let path = '';
             if(fProds.includes(p)) path = `depots/${p.depotId}/products/${p.id}`;
             else path = `depots/${p.depotId}/gifts/${p.id}`;
