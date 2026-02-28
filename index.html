@@ -1238,6 +1238,8 @@
     
     let productListeners = []; 
     let giftListeners = []; 
+    let challanListeners = []; 
+    let handoverListeners = []; 
 
     let data = {
         mpos: [], das: [], prods: [], gifts: [], challans: [], users: [], handovers: []
@@ -1340,12 +1342,22 @@
 
     window.changeDepotFilter = function() {
         currentDepotFilter = document.getElementById('global-depot-filter').value;
+        
+        // Detach old listeners
         productListeners.forEach(unsub => unsub());
         productListeners = [];
         giftListeners.forEach(unsub => unsub());
         giftListeners = [];
+        challanListeners.forEach(unsub => unsub());
+        challanListeners = [];
+        handoverListeners.forEach(unsub => unsub());
+        handoverListeners = [];
+
+        // Re-init with new filter
         initProductListeners();
         initGiftListeners(); 
+        initChallanListeners();
+        initHandoverListeners();
     };
 
     function getFilteredData(rawData) {
@@ -1381,12 +1393,12 @@
 
         listen('mpos', 'mpos');
         listen('das', 'das');
-        listen('challans', 'challans');
         listen('users', 'users');
-        listen('handovers', 'handovers'); // Listener for Hand Overs
 
         initProductListeners();
         initGiftListeners();
+        initChallanListeners();
+        initHandoverListeners();
     }
 
     function initProductListeners() {
@@ -1519,6 +1531,130 @@
         }
     }
 
+    function initChallanListeners() {
+        data.challans = [];
+
+        if (currentUser.role === 'user') {
+            const userDepotId = currentUser.depotId;
+            const challanRef = ref(db, `depots/${userDepotId}/challans`);
+            const unsub = onValue(challanRef, (snapshot) => {
+                if(!currentUser || currentUser.role !== 'user') return;
+                data.challans = [];
+                if(snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const c = childSnapshot.val();
+                        c.key = childSnapshot.key;
+                        c.depotId = userDepotId;
+                        data.challans.push(c);
+                    });
+                }
+                updateUI();
+            });
+            challanListeners.push(unsub);
+        } else if (currentUser.role === 'admin') {
+            if (currentDepotFilter === 'ALL') {
+                const depotsRef = ref(db, 'depots');
+                const unsubDepots = onValue(depotsRef, (snapshot) => {
+                    data.challans = [];
+                    if(snapshot.exists()) {
+                        snapshot.forEach((depotSnapshot) => {
+                            const depotId = depotSnapshot.key;
+                            const challansSnap = depotSnapshot.child('challans');
+                            if(challansSnap.exists()) {
+                                challansSnap.forEach((challanSnap) => {
+                                    const c = challanSnap.val();
+                                    c.key = challanSnap.key;
+                                    c.depotId = depotId;
+                                    data.challans.push(c);
+                                });
+                            }
+                        });
+                    }
+                    updateUI();
+                });
+                challanListeners.push(unsubDepots);
+            } else {
+                const specificDepotId = currentDepotFilter;
+                const challanRef = ref(db, `depots/${specificDepotId}/challans`);
+                const unsub = onValue(challanRef, (snapshot) => {
+                    data.challans = [];
+                    if(snapshot.exists()) {
+                        snapshot.forEach((childSnapshot) => {
+                            const c = childSnapshot.val();
+                            c.key = childSnapshot.key;
+                            c.depotId = specificDepotId;
+                            data.challans.push(c);
+                        });
+                    }
+                    updateUI();
+                });
+                challanListeners.push(unsub);
+            }
+        }
+    }
+
+    function initHandoverListeners() {
+        data.handovers = [];
+
+        if (currentUser.role === 'user') {
+            const userDepotId = currentUser.depotId;
+            const handoverRef = ref(db, `depots/${userDepotId}/handovers`);
+            const unsub = onValue(handoverRef, (snapshot) => {
+                if(!currentUser || currentUser.role !== 'user') return;
+                data.handovers = [];
+                if(snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const c = childSnapshot.val();
+                        c.key = childSnapshot.key;
+                        c.depotId = userDepotId;
+                        data.handovers.push(c);
+                    });
+                }
+                updateUI();
+            });
+            handoverListeners.push(unsub);
+        } else if (currentUser.role === 'admin') {
+            if (currentDepotFilter === 'ALL') {
+                const depotsRef = ref(db, 'depots');
+                const unsubDepots = onValue(depotsRef, (snapshot) => {
+                    data.handovers = [];
+                    if(snapshot.exists()) {
+                        snapshot.forEach((depotSnapshot) => {
+                            const depotId = depotSnapshot.key;
+                            const handoversSnap = depotSnapshot.child('handovers');
+                            if(handoversSnap.exists()) {
+                                handoversSnap.forEach((handoverSnap) => {
+                                    const c = handoverSnap.val();
+                                    c.key = handoverSnap.key;
+                                    c.depotId = depotId;
+                                    data.handovers.push(c);
+                                });
+                            }
+                        });
+                    }
+                    updateUI();
+                });
+                handoverListeners.push(unsubDepots);
+            } else {
+                const specificDepotId = currentDepotFilter;
+                const handoverRef = ref(db, `depots/${specificDepotId}/handovers`);
+                const unsub = onValue(handoverRef, (snapshot) => {
+                    data.handovers = [];
+                    if(snapshot.exists()) {
+                        snapshot.forEach((childSnapshot) => {
+                            const c = childSnapshot.val();
+                            c.key = childSnapshot.key;
+                            c.depotId = specificDepotId;
+                            data.handovers.push(c);
+                        });
+                    }
+                    updateUI();
+                });
+                handoverListeners.push(unsub);
+            }
+        }
+    }
+
     function updateUI() {
         document.getElementById('loader').style.display = 'none';
         
@@ -1526,7 +1662,7 @@
         const fDas = getFilteredData(data.das);
         const fProds = data.prods; 
         const fGifts = data.gifts; 
-        const fChallans = getFilteredData(data.challans);
+        const fChallans = data.challans; 
         const fUsers = currentUser.role === 'admin' ? data.users : [];
 
         const activeMpos = fMpos.filter(m => m.isActive !== false);
@@ -1621,6 +1757,15 @@
         if(document.getElementById('handOver').classList.contains('active')) {
             window.loadHandOverItems();
         }
+
+        // Set Default Date for Filter to Today if empty
+        const dateFilter = document.getElementById('filter-date');
+        if (!dateFilter.value) {
+            const today = new Date().toISOString().split('T')[0];
+            dateFilter.value = today;
+            // Trigger render to apply the date filter
+            window.renderChallans(fChallans, fMpos);
+        }
     }
 
     window.populateStatsFilters = function() {
@@ -1692,8 +1837,8 @@
         });
         window.scrollTo(0, 0);
 
-        if(id === 'reports') window.renderStockReport(data.prods, data.gifts, getFilteredData(data.challans));
-        if(id === 'challans') window.renderChallans(getFilteredData(data.challans), getFilteredData(data.mpos));
+        if(id === 'reports') window.renderStockReport(data.prods, data.gifts, data.challans);
+        if(id === 'challans') window.renderChallans(data.challans, getFilteredData(data.mpos));
         if(id === 'handOver') window.loadHandOverItems();
     };
 
@@ -1819,9 +1964,8 @@
         const currentMonth = new Date().toISOString().slice(0, 7);
         let used = 0;
         
-        // Filter strictly by the item's depot to ensure accuracy regardless of global filter
-        const itemChallans = data.challans.filter(c => c.depotId === item.depotId);
-        const itemHandovers = data.handovers.filter(c => c.depotId === item.depotId);
+        const itemChallans = data.challans; 
+        const itemHandovers = data.handovers;
 
         // Calculate Used in Regular Challans
         itemChallans.forEach(c => {
@@ -1935,7 +2079,7 @@
             depotId: assignedDepotId
         };
 
-        push(ref(db, 'handovers'), newChallan).then(() => {
+        push(ref(db, `depots/${assignedDepotId}/handovers`), newChallan).then(() => {
             showToast("Hand Over Challan Generated!");
             
             window.printHandOverChallan(newChallan);
@@ -1960,7 +2104,7 @@
         let totalUnit = "pcs";
         c.items.forEach((item, index) => {
             total += parseInt(item.issueQty || 0);
-            if(item.unit) totalUnit = item.unit;
+                        if(item.unit) totalUnit = item.unit;
             tbody.innerHTML += `
                 <tr>
                     <td style="text-align:center">${index+1}</td>
@@ -2290,7 +2434,14 @@
         const newSerial = maxSerial + 1;
         const serialStr = newSerial.toString().padStart(3, '0');
         const challanNo = `${basePrefix}${serialStr}`;
-        const cat = currentMPO.categoryProd || currentMPO.category || 'A';
+        
+        // FIX: Check if type is gift to assign correct category
+        let cat = '';
+        if(type === 'gift') {
+            cat = currentMPO.categoryGift || 'A';
+        } else {
+            cat = currentMPO.categoryProd || currentMPO.category || 'A';
+        }
 
         const newChallan = {
             id: challanNo,
@@ -2310,7 +2461,8 @@
             depotId: assignedDepotId
         };
 
-        push(ref(db, 'challans'), newChallan).then(() => {
+        // SAVE DEPOT WISE
+        push(ref(db, `depots/${assignedDepotId}/challans`), newChallan).then(() => {
             showToast("Manual Challan Generated & Saved!");
             manualSelections = {};
             updateCount('manual');
@@ -2318,7 +2470,7 @@
         }).catch(err => showToast("Error: " + err.message));
     };
 
-    window.generateChallan = function(type) {
+        window.generateChallan = function(type) {
         let itemsArray = [];
         let fProds = data.prods; 
         let fGifts = data.gifts; 
@@ -2334,18 +2486,25 @@
         const daId = type === 'gift' ? document.getElementById('gen-da-gift').value : document.getElementById('gen-da').value;
         const dateObj = new Date();
         const year = dateObj.getFullYear();
-        const month = ("0" + (dateObj.getMonth() +1)).slice(-2);
+        const month = ("0" + (dateObj.getMonth() + 1)).slice(-2);
         
-        let depotCode = "KS"; 
+        // --- DEPOT WISE SAVE LOGIC ---
         let assignedDepotId = currentUser.depotId; 
         
-        if (currentUser.role === 'admin') assignedDepotId = currentMPO.depotId || 'ALL'; 
+        if (currentUser.role === 'admin') {
+            assignedDepotId = currentMPO.depotId || currentDepotFilter;
+            if(assignedDepotId === 'ALL') assignedDepotId = 'HQ'; // Fallback if Admin is viewing ALL
+        }
+
+        // Generate Serial based on Depot Code
+        let depotCode = "KS"; 
         if(assignedDepotId && assignedDepotId !== 'ALL') depotCode = assignedDepotId.substring(0, 2).toUpperCase();
 
         const dateCode = `${year}${month}`;
         const basePrefix = `${depotCode}${dateCode}`;
         
         let maxSerial = 0;
+        // Check against data.challans (which is now loaded depot-wise)
         if(data.challans) {
             data.challans.forEach(c => { 
                 if(c.id && c.id.startsWith(basePrefix)) {
@@ -2358,10 +2517,13 @@
         const newSerial = maxSerial + 1;
         const serialStr = newSerial.toString().padStart(3, '0');
         const challanNo = `${basePrefix}${serialStr}`;
+        
+        // Determine Category
         let cat = '';
         if(type === 'prod') cat = currentMPO.categoryProd || currentMPO.category || 'A';
         else cat = currentMPO.categoryGift || 'A';
 
+        // Map Items with Quantities
         const items = itemsArray.map(item => {
             let qty = 0;
             if(cat === 'A') qty = item.qtyA || 0;
@@ -2390,7 +2552,8 @@
             depotId: assignedDepotId
         };
 
-        push(ref(db, 'challans'), newChallan).then(() => {
+        // --- SAVE TO FIREBASE (DEPOT WISE) ---
+        push(ref(db, `depots/${assignedDepotId}/challans`), newChallan).then(() => {
             showToast("Challan Generated & Saved!");
             if(type === 'gift') { selectedGifts.clear(); updateCount('gift'); } 
             else { selectedProducts.clear(); updateCount('prod'); }
@@ -2499,7 +2662,20 @@
         document.getElementById('p-ch-no').innerText = c.id;
         document.getElementById('p-date').innerText = c.date;
         document.getElementById('p-tp-sales').innerText = c.mpoSales ? Number(c.mpoSales).toLocaleString() : '0';
-        document.getElementById('p-cat').innerText = c.mpoCat || '-';
+        
+        // FIX: Category Print Logic with Fallback
+        let categoryToDisplay = c.mpoCat;
+        // If category is missing in challan record (old records), try to fetch latest from MPO list
+        if (!categoryToDisplay) {
+            const mpoRecord = data.mpos.find(m => m.id === c.mpoId);
+            if (mpoRecord) {
+                // If Gift challan, use Gift Category, else Prod Category
+                categoryToDisplay = (type === 'Gift') ? (mpoRecord.categoryGift || mpoRecord.categoryProd || mpoRecord.category) : (mpoRecord.categoryProd || mpoRecord.category);
+            } else {
+                categoryToDisplay = '-'; // Final fallback
+            }
+        }
+        document.getElementById('p-cat').innerText = categoryToDisplay;
 
         const tbody = document.getElementById('p-table-body');
         tbody.innerHTML = '';
@@ -2514,30 +2690,44 @@
     };
 
     window.renderChallans = function(fChallans, fMpos) {
-        if (!fChallans) fChallans = getFilteredData(data.challans);
+        if (!fChallans) fChallans = data.challans; // Use loaded data
         if (!fMpos) fMpos = getFilteredData(data.mpos);
 
-        let availableDepots = new Set();
-        if(fMpos) fMpos.forEach(m => { if(m.depotId) availableDepots.add(m.depotId); });
-        if(fChallans) fChallans.forEach(c => { if(c.depotId) availableDepots.add(c.depotId); });
-
+        // Populate Depot Filter Dropdown
         const depotSel = document.getElementById('filter-depot');
         const currentDepotVal = depotSel.value;
         depotSel.innerHTML = '<option value="">All Depots</option>';
-        Array.from(availableDepots).sort().forEach(depot => depotSel.innerHTML += `<option value="${depot}">${depot}</option>`);
+        
+        // Collect unique depots from the current view
+        let depotsInView = new Set();
+        if (currentUser.role === 'admin' && currentDepotFilter === 'ALL') {
+             // If admin is viewing ALL, show all depots from data
+             fMpos.forEach(m => { if(m.depotId) depotsInView.add(m.depotId); });
+             fChallans.forEach(c => { if(c.depotId) depotsInView.add(c.depotId); });
+        } else {
+             // Otherwise just show the current filter
+             if(currentDepotFilter && currentDepotFilter !== 'ALL') depotsInView.add(currentDepotFilter);
+             else if (currentUser.depotId) depotsInView.add(currentUser.depotId);
+        }
+
+        Array.from(depotsInView).sort().forEach(depot => depotSel.innerHTML += `<option value="${depot}">${depot}</option>`);
         depotSel.value = currentDepotVal;
 
-        let availableMpos = fMpos;
-        if (depotSel.value) availableMpos = fMpos.filter(m => m.depotId === depotSel.value);
-
+        // Populate MPO Filter Dropdown
         const mpoSel = document.getElementById('filter-mpo');
         const currentMpoVal = mpoSel.value;
         mpoSel.innerHTML = '<option value="">All MPOs</option>';
-        if (availableMpos && availableMpos.length) {
-            availableMpos.forEach(m => mpoSel.innerHTML += `<option value="${m.id}">${m.name}</option>`);
+        if (fMpos && fMpos.length) {
+            fMpos.forEach(m => mpoSel.innerHTML += `<option value="${m.id}">${m.name}</option>`);
         }
-        const optionExists = Array.from(mpoSel.options).some(o => o.value === currentMpoVal);
-        mpoSel.value = optionExists ? currentMpoVal : "";
+        mpoSel.value = currentMpoVal;
+
+        // --- SET CURRENT DATE DEFAULT ---
+        const dateFilterInput = document.getElementById('filter-date');
+        if (!dateFilterInput.value) {
+            const today = new Date().toISOString().split('T')[0];
+            dateFilterInput.value = today;
+        }
 
         const mpoFilter = document.getElementById('filter-mpo').value;
         const depotFilter = document.getElementById('filter-depot').value;
@@ -2545,13 +2735,10 @@
         const categoryFilter = document.getElementById('filter-category').value;
         const viewMode = document.getElementById('view-mode').value;
         const dateFilter = document.getElementById('filter-date').value;
-        
         const typeFilter = document.getElementById('filter-type').value;
 
-        let allRecords = [...fChallans, ...data.handovers.filter(h => {
-            if(currentUser.role === 'admin' && currentDepotFilter === 'ALL') return true;
-            return h.depotId === currentDepotFilter;
-        })];
+        // Combine regular challans and handovers for display
+        let allRecords = [...fChallans, ...data.handovers];
 
         const list = allRecords.filter(c => {
             const matchesMPO = !mpoFilter || c.mpoId === mpoFilter;
@@ -2638,7 +2825,7 @@
                             <td>
                                 <button class="btn btn-sm btn-secondary" onclick="window.viewChallanDetails('${c.key}')" title="View Items"><i class="fa-solid fa-eye"></i></button>
                                 <button class="btn btn-sm btn-primary" onclick="window.printChallan('${c.key}', '${c.type}')" title="Print"><i class="fa-solid fa-print"></i></button>
-                                <button class="btn btn-sm btn-danger" onclick="window.deleteChallan('${c.key}', '${c.type}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                <button class="btn btn-sm btn-danger" onclick="window.deleteChallan('${c.key}', '${c.type}', '${c.depotId}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
                             </td>
                         </tr>`;
                 });
@@ -2713,7 +2900,7 @@
                                 <td>
                                     <button class="btn btn-sm btn-secondary" onclick="window.viewChallanDetails('${c.key}')" title="View Items"><i class="fa-solid fa-eye"></i></button>
                                     <button class="btn btn-sm btn-primary" onclick="window.printChallan('${c.key}', '${c.type}')" title="Print"><i class="fa-solid fa-print"></i></button>
-                                    <button class="btn btn-sm btn-danger" onclick="window.deleteChallan('${c.key}', '${c.type}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                    <button class="btn btn-sm btn-danger" onclick="window.deleteChallan('${c.key}', '${c.type}', '${c.depotId}')" title="Delete"><i class="fa-solid fa-trash"></i></button>
                                 </td>
                             </tr>`;
                     });
@@ -2724,17 +2911,17 @@
         }
     };
 
-    window.deleteChallan = function(key, type) {
+        window.deleteChallan = function(key, type, depotId) {
         if(!confirm('Delete this record?')) return;
         
         let path = '';
-        if (type === 'Hand Over') path = 'handovers/' + key;
-        else path = 'challans/' + key;
+        if (type === 'Hand Over') path = `depots/${depotId}/handovers/` + key;
+        else path = `depots/${depotId}/challans/` + key;
 
         remove(ref(db, path)).then(() => showToast("Record Deleted"));
     };
 
-    // MANAGEMENT TABLES RENDERING
+    // --- MANAGEMENT TABLES RENDERING ---
     window.renderMgmtTables = function(fMpos, fProds, fGifts, fDas, fUsers) {
         if (!fMpos) fMpos = getFilteredData(data.mpos);
         if (!fProds) fProds = data.prods; 
@@ -2923,7 +3110,6 @@
         document.getElementById('modal-title').innerText = `Add Stock - ${item.name}`;
         document.getElementById('modal-form').reset();
         
-        // Calculate real closing stock
         const closingStock = getItemClosingStock(item);
 
         const container = document.getElementById('modal-fields');
@@ -3284,10 +3470,6 @@
         // Hand Overs
         data.handovers.forEach(c => {
             const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
-            // Filter by depot if needed
-            if(currentUser.role !== 'admin' && c.depotId !== currentUser.depotId) return;
-            if(currentUser.role === 'admin' && currentDepotFilter !== 'ALL' && c.depotId !== currentDepotFilter) return;
-
             if(cDate === currentMonth && c.items) {
                 c.items.forEach(item => {
                     if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
@@ -3318,7 +3500,7 @@
     window.closeMonth = function() {
         if(!confirm('Are you sure you want to Close Month? This will:\n1. Set Closing Stock as new Opening Stock.\n2. Reset Monthly Received to 0.')) return;
         
-        const fChallans = getFilteredData(data.challans);
+        const fChallans = data.challans;
         const fProds = data.prods;
         const fGifts = data.gifts;
         const currentMonth = new Date().toISOString().slice(0, 7);
@@ -3338,9 +3520,6 @@
 
         data.handovers.forEach(c => {
             const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
-            if(currentUser.role !== 'admin' && c.depotId !== currentUser.depotId) return;
-            if(currentUser.role === 'admin' && currentDepotFilter !== 'ALL' && c.depotId !== currentDepotFilter) return;
-
             if(cDate === currentMonth && c.items) {
                 c.items.forEach(item => {
                     if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
@@ -3375,14 +3554,14 @@
 
         Promise.all(updates).then(() => {
             showToast("Month Closed Successfully!");
-            window.renderStockReport(data.prods, data.gifts, getFilteredData(data.challans));
+            window.renderStockReport(data.prods, data.gifts, data.challans);
         }).catch(err => showToast("Error: " + err.message));
     };
 
     window.exportStockToExcel = function() {
         const fProds = data.prods; 
         const fGifts = data.gifts;
-        const fChallans = getFilteredData(data.challans);
+        const fChallans = data.challans;
         const currentMonth = new Date().toISOString().slice(0, 7);
 
         let monthlyUsage = {};
@@ -3401,7 +3580,6 @@
         // Hand Over
         data.handovers.forEach(c => {
             const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
-             if(currentUser.role !== 'admin' && c.depotId !== currentUser.depotId) return;
             if(cDate === currentMonth && c.items) {
                 c.items.forEach(item => {
                     if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
@@ -3448,7 +3626,7 @@
 
         const fProds = data.prods; 
         const fGifts = data.gifts;
-        const fChallans = getFilteredData(data.challans);
+        const fChallans = data.challans;
         const currentMonth = new Date().toISOString().slice(0, 7);
 
         let monthlyUsage = {};
@@ -3465,7 +3643,6 @@
         // Hand Over usage
         data.handovers.forEach(c => {
             const cDate = new Date(c.timestamp).toISOString().slice(0, 7);
-            if(currentUser.role !== 'admin' && c.depotId !== currentUser.depotId) return;
             if(cDate === currentMonth && c.items) {
                 c.items.forEach(item => {
                     if(monthlyUsage[item.id]) monthlyUsage[item.id] += parseInt(item.issueQty || 0);
