@@ -346,9 +346,9 @@
 
         let currentUser = null;
         let editingBillId = null;
-        let daListCache = {}; // Cache for DA list
+        let daListCache = {}; 
 
-        // ================= DATE FORMATTER (DD-MM-YYYY) =================
+        // ================= DATE FORMATTER =================
         function formatDate(dateStr) {
             if (!dateStr) return '';
             if (dateStr.indexOf('-') !== 4) return dateStr; 
@@ -361,12 +361,14 @@
             const userVal = document.getElementById('username').value;
             const passVal = document.getElementById('password').value;
 
+            // Admin Hardcoded Login
             if (userVal === 'KS' && passVal === 'Monico@Ku007') {
                 currentUser = { name: 'Admin', role: 'admin', depot: 'all', id: 'admin_001' };
                 showDashboard();
                 return;
             }
 
+            // User Database Login
             const userRef = database.ref('Users');
             userRef.orderByChild('username').equalTo(userVal).once('value', (snapshot) => {
                 if (snapshot.exists()) {
@@ -383,6 +385,9 @@
                         } else { alert("Password Incorrect!"); }
                     });
                 } else { alert("User not found!"); }
+            }, (error) => {
+                console.error("Login Error:", error);
+                alert("Database Connection Failed! Check Firebase Rules.");
             });
         }
 
@@ -394,24 +399,30 @@
             document.getElementById('dashboard_section').classList.remove('hidden');
             document.getElementById('welcome_msg').innerText = `Welcome: ${currentUser.name}`;
             
-            // Role based visibility
+            // Reset Visibility
+            document.querySelectorAll('.admin-only').forEach(item => item.style.display = 'none');
+            document.querySelectorAll('.user-only').forEach(item => item.style.display = 'none');
+
             if(currentUser.role !== 'admin') {
-                document.querySelectorAll('.admin-only').forEach(item => item.style.display = 'none');
+                // USER VIEW
                 document.querySelectorAll('.user-only').forEach(item => item.style.display = 'block');
-                document.getElementById('notif_btn').classList.remove('hidden'); // Show bell for user
+                document.getElementById('notif_btn').classList.remove('hidden');
                 listenForNotifications();
             } else {
+                // ADMIN VIEW
                 document.querySelectorAll('.admin-only').forEach(item => item.style.display = 'block');
-                document.querySelectorAll('.user-only').forEach(item => item.style.display = 'none');
+                
+                // Fix: Admin Default Tab Show
                 document.getElementById('entry-tab').classList.remove('active');
                 document.getElementById('entryTab').classList.remove('show', 'active');
                 document.getElementById('history-tab').classList.add('active');
                 document.getElementById('billTab').classList.add('show', 'active');
-                loadDAListForIOU(); // Load DA names for dropdown
+                
+                loadDAListForIOU();
             }
 
             prepareBillEntryForm();
-            loadBills();
+            loadBills(); // Load Bills after role set
             if(currentUser.role === 'user') loadUserIOU();
             if(currentUser.role === 'admin') loadAdminIOU();
         }
@@ -421,7 +432,7 @@
             const notifRef = database.ref('Notifications');
             notifRef.limitToLast(1).on('child_added', (snapshot) => {
                 const msg = snapshot.val();
-                if(msg && msg.timestamp > (Date.now() - 5000)) { // Show only recent
+                if(msg && msg.timestamp > (Date.now() - 10000)) { 
                     alert("Notification: " + msg.message);
                 }
             });
@@ -445,7 +456,7 @@
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('form_dep_date').value = today;
             document.getElementById('form_ret_date').value = today;
-            document.getElementById('form_submit_date').value = today; // Bill Submit Date
+            document.getElementById('form_submit_date').value = today;
 
             document.getElementById('expense_table_body').innerHTML = '';
             addExpenseRow();
@@ -508,7 +519,7 @@
                 depot: currentUser.depot,
                 depDate: document.getElementById('form_dep_date').value,
                 retDate: document.getElementById('form_ret_date').value,
-                submitDate: document.getElementById('form_submit_date').value, // Save Submit Date
+                submitDate: document.getElementById('form_submit_date').value,
                 route: document.getElementById('form_route').value,
                 mpo: document.getElementById('form_mpo').value,
                 summaryNo: document.getElementById('form_summary').value,
@@ -634,7 +645,7 @@
                     daListCache[child.key] = u.name;
                     select.innerHTML += `<option value="${child.key}">${u.name}</option>`;
                 });
-            });
+            }, (error) => { console.log("Error loading DA List: ", error); });
         }
 
         function saveIOU() {
@@ -665,6 +676,8 @@
                 tbody.innerHTML = '';
                 let tSales=0, tQty=0, tTaka=0;
                 let count = 1;
+                if(!snap.exists()) tbody.innerHTML = '<tr><td colspan="11" class="text-center">No IOU Data</td></tr>';
+                
                 snap.forEach(child => {
                     const d = child.val();
                     tSales += d.sales; tQty += d.qty; tTaka += d.taka;
@@ -678,7 +691,7 @@
                 document.getElementById('iou_tot_sales').innerText = tSales;
                 document.getElementById('iou_tot_qty').innerText = tQty;
                 document.getElementById('iou_tot_taka').innerText = tTaka;
-            });
+            }, (error) => { console.log("IOU Load Error: ", error); });
         }
 
         function deleteIOU(id) {
@@ -700,33 +713,30 @@
                     tr.innerHTML = `<td>${count++}</td><td>${formatDate(d.date)}</td><td>${d.territory}</td><td>${d.mpo}</td><td>${d.sales}</td><td>${d.taka}</td>`;
                     tbody.appendChild(tr);
                 });
-            });
+            }, (error) => { console.log("User IOU Error: ", error); });
         }
 
         function fillBillFromIOU(iou) {
-            // Fill form
             document.getElementById('form_dep_date').value = iou.date;
             document.getElementById('form_ret_date').value = iou.date;
             document.getElementById('form_submit_date').value = iou.date;
-            document.getElementById('form_route').value = iou.territory; // Assuming Territory as Route
+            document.getElementById('form_route').value = iou.territory; 
             document.getElementById('form_mpo').value = iou.mpo;
             document.getElementById('form_summary').value = iou.summary;
             document.getElementById('form_invoice_val').value = iou.sales;
             document.getElementById('form_invoice_qty').value = iou.qty;
             calculateSoldValue();
             
-            // Fill expense amount
             const tbody = document.getElementById('expense_table_body');
             if(tbody.rows.length > 0) {
                 tbody.rows[0].querySelector('.exp-amount').value = iou.taka;
                 calculateRowTotal(tbody.rows[0].querySelector('.exp-amount'));
             }
-
             document.getElementById('entry-tab').click();
             alert("Form Auto-filled from IOU!");
         }
 
-        // ================= BILL HISTORY LOGIC =================
+        // ================= BILL HISTORY LOGIC (FIXED) =================
         function loadBills() {
             const tableBody = document.getElementById('bill_table_body');
             tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Loading...</td></tr>';
@@ -734,7 +744,12 @@
             
             billsRef.on('value', (snapshot) => {
                 tableBody.innerHTML = '';
-                if (!snapshot.exists()) { tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">No Bills Found</td></tr>'; return; }
+                
+                // Error/Empty Handling
+                if (!snapshot.exists()) { 
+                    tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">No Bills Found</td></tr>'; 
+                    return; 
+                }
 
                 snapshot.forEach((depotSnapshot) => {
                     depotSnapshot.forEach((daSnapshot) => {
@@ -743,8 +758,12 @@
                             const billId = billSnapshot.key;
                             const daId = bill.daId;
 
-                            if (currentUser.role === 'admin' && bill.status === 'draft') return;
+                            // Role Logic:
+                            // User: See only own bills (Draft, Red, Green)
+                            // Admin: See Red and Green (Hide Drafts to keep list clean)
+                            
                             if (currentUser.role === 'user' && bill.daId !== currentUser.id) return;
+                            if (currentUser.role === 'admin' && bill.status === 'draft') return;
 
                             const tr = document.createElement('tr');
                             if(bill.status === 'draft') tr.classList.add('status-draft');
@@ -762,16 +781,17 @@
                             
                             let actionBtns = `<button class="btn btn-info btn-sm text-white" onclick="printBill('${billId}', '${bill.depot}', '${daId}')">Print</button> `;
 
+                            // User Actions
                             if (currentUser.role === 'user' && (bill.status === 'red' || bill.status === 'draft')) {
                                 actionBtns += `<button class="btn btn-warning btn-sm" onclick="editBill('${billId}', '${bill.depot}', '${daId}')">Edit</button> `;
                                 actionBtns += `<button class="btn btn-danger btn-sm" onclick="deleteBill('${billId}', '${bill.depot}', '${daId}')">Del</button>`;
                             }
 
+                            // Admin Actions
                             if (currentUser.role === 'admin' && bill.status === 'red') {
                                 actionBtns += `<button class="btn btn-warning btn-sm" onclick="openCutModal('${billId}', '${bill.depot}', '${daId}', ${bill.totalAmount})">Cut</button>`;
                             }
 
-                            // Show Submit Date if available
                             const showDate = bill.submitDate || bill.depDate;
 
                             tr.innerHTML = `<td>${formatDate(showDate)}</td><td>${bill.daName}</td><td>${bill.depot}</td><td>${bill.route || 'N/A'}</td><td>${amtHtml}</td><td><b>${statusText}</b></td><td>${actionBtns}</td>`;
@@ -779,6 +799,9 @@
                         });
                     });
                 });
+            }, (error) => {
+                console.error("Firebase Read Failed: ", error);
+                tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Database Error: ${error.message}<br>Check Firebase Rules.</td></tr>`;
             });
         }
 
@@ -795,7 +818,7 @@
                 document.getElementById('p_depot').innerText = bill.depot;
                 document.getElementById('p_dep_date').innerText = formatDate(bill.depDate);
                 document.getElementById('p_ret_date').innerText = formatDate(bill.retDate);
-                document.getElementById('p_submit_date').innerText = formatDate(bill.submitDate); // Print Bill Date
+                document.getElementById('p_submit_date').innerText = formatDate(bill.submitDate);
                 document.getElementById('p_route').innerText = bill.route;
                 document.getElementById('p_mpo').innerText = bill.mpo;
                 document.getElementById('p_summary').innerText = bill.summaryNo;
