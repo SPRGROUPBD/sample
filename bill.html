@@ -73,7 +73,6 @@
                 <div class="mb-3"><label>Username</label><input type="text" id="username" class="form-control" placeholder="Enter Username"></div>
                 <div class="mb-3"><label>Password</label><input type="password" id="password" class="form-control" placeholder="Enter Password"></div>
                 <button onclick="handleLogin()" class="btn btn-primary w-100">Login</button>
-                <!-- REMOVED HINT LINE -->
             </div>
         </div>
     </div>
@@ -182,6 +181,7 @@
                                     <option>Pickup</option>
                                     <option>CNG</option>
                                     <option>Train</option>
+                                    <option>DA</option>
                                 </select>
                             </div>
                             <div class="col-3 col-md-2">
@@ -268,11 +268,12 @@
                             <div class="col-6 col-md-1"><label>Taka</label><input type="number" id="iou_taka" class="form-control form-control-sm" oninput="calcIouPercent()"></div>
                             <div class="col-6 col-md-1"><label>%</label><input type="text" id="iou_percent" class="form-control form-control-sm" readonly></div>
                         </div>
-                        <button onclick="saveIOU()" class="btn btn-success btn-sm w-100 mb-2">Save IOU Entry</button>
+                        <button id="iou_save_btn" onclick="saveIOU()" class="btn btn-success btn-sm w-100 mb-2">Save IOU Entry</button>
+                        <button id="iou_cancel_btn" onclick="cancelIOUEdit()" class="btn btn-secondary btn-sm w-100 mb-2 hidden">Cancel Edit</button>
                         
                         <div class="table-responsive"><table class="table table-bordered table-sm">
                             <thead class="table-secondary">
-                                <tr><th>#</th><th>Date</th><th>DA Name</th><th>Territory</th><th>MPO</th><th>Summary</th><th>Sales</th><th>Qty</th><th>Taka</th><th>%</th><th>X</th></tr>
+                                <tr><th>#</th><th>Date</th><th>DA Name</th><th>Territory</th><th>MPO</th><th>Summary</th><th>Sales</th><th>Qty</th><th>Taka</th><th>%</th><th>Action</th></tr>
                             </thead>
                             <tbody id="iou_admin_table_body"></tbody>
                             <tfoot><tr class="fw-bold"><td colspan="6">Total</td><td id="iou_tot_sales">0</td><td id="iou_tot_qty">0</td><td id="iou_tot_taka">0</td><td></td><td></td></tr></tfoot>
@@ -417,7 +418,8 @@
 
         let currentUser = null;
         let editingBillId = null;
-        let editingBillDaId = null; // NEW: To store DA ID during admin edit
+        let editingBillDaId = null; 
+        let editingIouId = null; // NEW: For IOU Edit state
         let daListCache = {}; 
         let currentIouId = null;
         
@@ -752,7 +754,7 @@
                 <td><input type="date" class="form-control form-control-sm exp-date" value="${today}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
                 <td><input type="text" class="form-control form-control-sm exp-from" oninput="triggerAutoSave()"></td>
                 <td><input type="text" class="form-control form-control-sm exp-to" oninput="triggerAutoSave()"></td>
-                <td><select class="form-select form-select-sm exp-mode" onchange="triggerAutoSave()"><option>Bus</option><option>Rick</option><option>CNG</option></select></td>
+                <td><select class="form-select form-select-sm exp-mode" onchange="triggerAutoSave()"><option>Bus</option><option>Rick</option><option>Auto</option></select></td>
                 <td><input type="number" class="form-control form-control-sm exp-amount" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
                 <td><input type="number" class="form-control form-control-sm exp-da" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
                 <td><input type="text" class="form-control form-control-sm exp-total" readonly></td>
@@ -792,12 +794,10 @@
 
         // ================= SUBMIT, UPDATE, DRAFT LOGIC =================
         function submitOrUpdateBill(statusType) {
-            // Determine ownership
             let targetDaId = currentUser.id;
             let targetDaName = currentUser.name;
             let targetDepot = currentUser.depot;
 
-            // If Admin is editing someone else's bill, keep original ownership
             if (editingBillId && editingBillDaId) {
                 targetDaId = editingBillDaId;
                 targetDaName = document.getElementById('form_da_name').value;
@@ -855,10 +855,22 @@
                         clearLocalDraft();
                         
                         alert(statusType === 'draft' ? "Saved as Draft!" : "Bill Submitted!");
+                        
+                        // Clear form inputs for new entry
                         document.getElementById('form_route').value = '';
+                        document.getElementById('form_mpo').value = '';
+                        document.getElementById('form_summary').value = '';
+                        document.getElementById('form_invoice_val').value = '';
+                        document.getElementById('form_return_val').value = 0;
+                        document.getElementById('form_invoice_qty').value = '';
                         document.getElementById('grand_total').value = '0';
                         document.getElementById('form_cost_percent').innerText = '0%';
-                        prepareBillEntryForm();
+                        document.getElementById('expense_table_body').innerHTML = '';
+                        
+                        calculateSoldValue(); // Update Sold Value to 0
+                        currentIouId = null; // Reset current IOU
+                        
+                        prepareBillEntryForm(); // Reset dates
                         document.getElementById('history-tab').click();
                     }
                 });
@@ -871,8 +883,6 @@
                 if(!bill) return;
 
                 clearLocalDraft();
-
-                // Store DA ID to preserve ownership if Admin edits
                 editingBillDaId = bill.daId; 
 
                 document.getElementById('form_da_name').value = bill.daName;
@@ -898,7 +908,9 @@
                             <td><input type="date" class="form-control form-control-sm exp-date" value="${exp.date}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
                             <td><input type="text" class="form-control form-control-sm exp-from" value="${exp.from}" oninput="triggerAutoSave()"></td>
                             <td><input type="text" class="form-control form-control-sm exp-to" value="${exp.to}" oninput="triggerAutoSave()"></td>
-                            <td><select class="form-select form-select-sm exp-mode" onchange="triggerAutoSave()"><option ${exp.mode == 'Bus' ? 'selected' : ''}>Bus</option><option ${exp.mode == 'Rick' ? 'selected' : ''}>Rick</option><option ${exp.mode == 'CNG' ? 'selected' : ''}>CNG</option></select></td>
+                            <td><select class="form-select form-select-sm exp-mode" onchange="triggerAutoSave()"><option ${exp.mode == 'Bus' ? 'selected' : ''}>Bus</option><option ${exp.mode == 'Rick' ? 'selected' : ''}>Rick</option><option ${exp.mode == 'CNG' ? 'selected' : ''}>CNG</option>
+                            <option ${exp.mode == 'Auto' ? 'selected' : ''}>Auto</option><option ${exp.mode == 'Bike' ? 'selected' : ''}>Bike</option><option ${exp.mode == '-' ? 'selected' : ''}>DA</option><option ${exp.mode == 'Pickup' ? 'selected' : ''}>Pickup</option>
+                        <option ${exp.mode == 'Van' ? 'selected' : ''}>Van</option></select></td>
                             <td><input type="number" class="form-control form-control-sm exp-amount" value="${exp.amount}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
                             <td><input type="number" class="form-control form-control-sm exp-da" value="${exp.da}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
                             <td><input type="text" class="form-control form-control-sm exp-total" value="${(parseFloat(exp.amount)||0) + (parseFloat(exp.da)||0)}" readonly></td>
@@ -914,7 +926,6 @@
                 document.getElementById('main_submit_btn').classList.add('btn-warning');
                 document.getElementById('cancel_edit_btn').classList.remove('hidden');
                 
-                // Switch to Entry Tab
                 document.getElementById('entry-tab').classList.add('active'); 
                 document.getElementById('entryTab').classList.add('show', 'active');
                 document.getElementById('history-tab').classList.remove('active');
@@ -925,18 +936,13 @@
         function deleteBill(billId, depot, daId) {
             if(confirm("Are you sure to delete this bill?")) {
                 const billRef = database.ref('Bills/' + depot + '/' + daId + '/' + billId);
-                
-                // Step 1: Get Bill Data to find linked IOU
                 billRef.once('value', (snapshot) => {
                     const billData = snapshot.val();
                     const linkedIouId = billData ? billData.iouId : null;
 
-                    // Step 2: Delete Bill
                     billRef.remove()
                     .then(() => {
                         alert("Bill Deleted!");
-                        
-                        // Step 3: If Bill had an IOU, make it Active again
                         if (linkedIouId) {
                             database.ref('IOU_List/' + linkedIouId).update({ status: 'active' })
                                 .then(() => console.log("IOU Reactivated"))
@@ -950,7 +956,7 @@
 
         function cancelEdit() {
             editingBillId = null;
-            editingBillDaId = null; // Clear stored DA ID
+            editingBillDaId = null; 
             document.getElementById('main_submit_btn').innerText = "Submit Bill";
             document.getElementById('main_submit_btn').classList.add('btn-success');
             document.getElementById('main_submit_btn').classList.remove('btn-warning');
@@ -997,9 +1003,62 @@
                 status: 'active'
             };
 
-            database.ref('IOU_List').push(data)
-            .then(() => alert("IOU Saved!"))
-            .catch(e => alert(e.message));
+            // Update or Create Logic
+            let operation;
+            if (editingIouId) {
+                operation = database.ref('IOU_List/' + editingIouId).update(data);
+            } else {
+                operation = database.ref('IOU_List').push(data);
+            }
+
+            operation.then(() => {
+                alert(editingIouId ? "IOU Updated!" : "IOU Saved!");
+                clearIOUForm();
+            }).catch(e => alert(e.message));
+        }
+
+        function clearIOUForm() {
+            document.getElementById('iou_date').value = '';
+            document.getElementById('iou_da_name').value = '';
+            document.getElementById('iou_territory').value = '';
+            document.getElementById('iou_mpo').value = '';
+            document.getElementById('iou_summary').value = '';
+            document.getElementById('iou_sales').value = '';
+            document.getElementById('iou_qty').value = '';
+            document.getElementById('iou_taka').value = '';
+            document.getElementById('iou_percent').value = '0';
+            
+            editingIouId = null;
+            document.getElementById('iou_save_btn').innerText = "Save IOU Entry";
+            document.getElementById('iou_cancel_btn').classList.add('hidden');
+        }
+
+        function editIOU(id) {
+            database.ref('IOU_List/' + id).once('value', snap => {
+                const d = snap.val();
+                if(!d) return;
+
+                document.getElementById('iou_date').value = d.date;
+                document.getElementById('iou_da_name').value = d.daId;
+                document.getElementById('iou_territory').value = d.territory;
+                document.getElementById('iou_mpo').value = d.mpo;
+                document.getElementById('iou_summary').value = d.summary;
+                document.getElementById('iou_sales').value = d.sales;
+                document.getElementById('iou_qty').value = d.qty;
+                document.getElementById('iou_taka').value = d.taka;
+                document.getElementById('iou_percent').value = d.percent;
+
+                editingIouId = id;
+                document.getElementById('iou_save_btn').innerText = "Update IOU Entry";
+                document.getElementById('iou_cancel_btn').classList.remove('hidden');
+                
+                // Scroll to top
+                document.getElementById('iou_admin-tab').scrollIntoView();
+            });
+        }
+
+        function cancelIOUEdit() {
+            clearIOUForm();
         }
 
         function loadAdminIOU() {
@@ -1022,7 +1081,11 @@
                         <td>${count++}</td><td>${formatDate(d.date)}</td><td>${d.daName}</td><td>${d.territory}</td>
                         <td>${d.mpo}</td><td>${d.summary}</td><td>${d.sales}</td><td>${d.qty}</td>
                         <td>${d.taka}</td><td>${d.percent}%</td>
-                        <td>${statusBadge} <button class="btn btn-sm btn-danger" onclick="deleteIOU('${child.key}')">X</button></td>
+                        <td>
+                            ${statusBadge} 
+                            <button class="btn btn-sm btn-warning" onclick="editIOU('${child.key}')">Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteIOU('${child.key}')">X</button>
+                        </td>
                     </tr>`;
                 });
                 document.getElementById('iou_tot_sales').innerText = tSales;
@@ -1032,7 +1095,10 @@
         }
 
         function deleteIOU(id) {
-            if(confirm("Delete IOU?")) database.ref('IOU_List/' + id).remove();
+            if(confirm("Delete IOU?")) {
+                database.ref('IOU_List/' + id).remove();
+                if(editingIouId === id) clearIOUForm(); // If deleting the item being edited
+            }
         }
 
         function loadUserIOU() {
@@ -1122,19 +1188,15 @@
                             
                             let actionBtns = `<button class="btn btn-info btn-sm text-white" onclick="printBill('${billId}', '${bill.depot}', '${daId}')">Print</button> `;
 
-                            // User Actions
                             if (currentUser.role === 'user' && (bill.status === 'red' || bill.status === 'draft')) {
                                 actionBtns += `<button class="btn btn-warning btn-sm" onclick="editBill('${billId}', '${bill.depot}', '${daId}')">Edit</button> `;
                                 actionBtns += `<button class="btn btn-danger btn-sm" onclick="deleteBill('${billId}', '${bill.depot}', '${daId}')">Del</button>`;
                             }
 
-                            // Admin Actions - NEW LOGIC
                             if (currentUser.role === 'admin') {
-                                // Admin can Edit/Delete ANY bill
                                 actionBtns += `<button class="btn btn-warning btn-sm" onclick="editBill('${billId}', '${bill.depot}', '${daId}')">Edit</button> `;
                                 actionBtns += `<button class="btn btn-danger btn-sm" onclick="deleteBill('${billId}', '${bill.depot}', '${daId}')">Del</button> `;
                                 
-                                // Admin can Cut only Pending bills
                                 if (bill.status === 'red') {
                                     actionBtns += `<button class="btn btn-secondary btn-sm" onclick="openCutModal('${billId}', '${bill.depot}', '${daId}', ${bill.totalAmount})">Cut</button>`;
                                 }
@@ -1331,4 +1393,3 @@
     </script>
 </body>
 </html>
-
