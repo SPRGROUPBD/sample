@@ -15,6 +15,25 @@
         .hidden { display: none; }
         .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         
+        /* Quick Entry Style */
+        .quick-entry-card { 
+            background-color: #e3f2fd; 
+            border: 1px solid #90caf9; 
+            border-radius: 5px; 
+            padding: 10px; 
+            margin-bottom: 10px;
+        }
+        .quick-entry-card label { font-size: 11px; font-weight: bold; color: #0d47a1; }
+
+        /* Notification Styles */
+        .notif-item { cursor: pointer; border-bottom: 1px solid #eee; padding: 10px; }
+        .notif-item.unread { background-color: #e3f2fd; font-weight: bold; }
+        .notif-item.read { background-color: #fff; color: #888; }
+        
+        /* IOU Used Status */
+        .iou-used { color: #888; font-style: italic; }
+        .badge-used { background-color: #6c757d !important; }
+
         /* Print Style */
         .print-container { display: none; }
         @media print {
@@ -28,13 +47,14 @@
             table, th, td { border: 1px solid #000 !important; border-collapse: collapse; }
             th, td { padding: 2px 4px; font-size: 11px; line-height: 1.2; }
             .sign-row td { height: 50px; vertical-align: bottom; }
+            .cut-text { text-decoration: line-through; color: red; }
         }
+        
         .cut-amount { color: red; text-decoration: line-through; margin-right: 8px; font-weight: bold; }
         .payable-amount { color: green; font-weight: bold; }
         .clickable-row { cursor: pointer; }
         .clickable-row:hover { background-color: #e0f7fa; }
         
-        /* Mobile Responsive */
         @media (max-width: 768px) {
             .btn-sm { font-size: 0.7rem; padding: 0.25rem 0.5rem; }
             .form-control, .form-select { font-size: 0.85rem; }
@@ -62,7 +82,7 @@
         <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light shadow-sm rounded no-print">
             <h5 class="mb-0" id="welcome_msg">Welcome</h5>
             <div class="d-flex align-items-center">
-                <button id="notif_btn" class="btn btn-light btn-sm position-relative me-2 hidden">
+                <button id="notif_btn" class="btn btn-light btn-sm position-relative me-2 hidden" onclick="showNotifTab()">
                     <i class="bi bi-bell"></i>
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notif_count">0</span>
                 </button>
@@ -78,7 +98,10 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#billTab" type="button">History</button>
             </li>
-            <!-- User Specific Tab -->
+            <!-- User Specific Tabs -->
+            <li class="nav-item user-only" role="presentation">
+                <button class="nav-link" id="user_notif-tab" data-bs-toggle="tab" data-bs-target="#userNotifTab" type="button">Notifications</button>
+            </li>
             <li class="nav-item user-only" role="presentation">
                 <button class="nav-link" id="iou_user-tab" data-bs-toggle="tab" data-bs-target="#iouUserTab" type="button">My IOU</button>
             </li>
@@ -135,6 +158,41 @@
                         <div class="col-6"><label>Invoice Qty:</label><input type="number" id="form_invoice_qty" class="form-control form-control-sm"></div>
                     </div>
 
+                    <!-- QUICK ENTRY SECTION -->
+                    <div class="quick-entry-card no-print">
+                        <h6 class="text-primary mb-2"><i class="bi bi-lightning-charge-fill"></i> Quick Entry</h6>
+                        <div class="row g-1">
+                            <div class="col-6 col-md-2">
+                                <label>From</label>
+                                <input type="text" id="q_from" class="form-control form-control-sm" placeholder="From">
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label>To</label>
+                                <input type="text" id="q_to" class="form-control form-control-sm" placeholder="To">
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label>Mode</label>
+                                <select id="q_mode" class="form-select form-select-sm">
+                                    <option>Bus</option>
+                                    <option>Rick</option>
+                                    <option>CNG</option>
+                                    <option>Train</option>
+                                </select>
+                            </div>
+                            <div class="col-3 col-md-2">
+                                <label>Amount</label>
+                                <input type="number" id="q_amount" class="form-control form-control-sm" placeholder="0">
+                            </div>
+                            <div class="col-3 col-md-2">
+                                <label>DA</label>
+                                <input type="number" id="q_da_expense" class="form-control form-control-sm" placeholder="0">
+                            </div>
+                            <div class="col-12 col-md-2 d-flex align-items-end">
+                                <button onclick="addQuickEntryRow()" class="btn btn-success btn-sm w-100"><i class="bi bi-plus-lg"></i> Add</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="table table-bordered table-sm">
                             <thead class="table-light">
@@ -149,7 +207,7 @@
                     </div>
 
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-2">
-                        <button onclick="addExpenseRow()" class="btn btn-secondary btn-sm">+ Row</button>
+                        <button onclick="addExpenseRow()" class="btn btn-secondary btn-sm">+ Empty Row</button>
                         <button id="draft_btn" onclick="submitOrUpdateBill('draft')" class="btn btn-secondary btn-sm">Save Draft</button>
                         <button id="main_submit_btn" onclick="submitOrUpdateBill('red')" class="btn btn-success btn-sm">Submit Bill</button>
                         <button id="cancel_edit_btn" onclick="cancelEdit()" class="btn btn-danger btn-sm hidden">Cancel</button>
@@ -167,19 +225,29 @@
                 </div></div>
             </div>
 
-            <!-- Tab 3: User IOU List (User Only) -->
+            <!-- Tab 3: User Notifications (NEW) -->
+            <div class="tab-pane fade user-only" id="userNotifTab" role="tabpanel">
+                <div class="card no-print">
+                    <div class="card-header py-1 bg-info text-white">My Notifications</div>
+                    <div class="card-body p-0" id="user_notif_list">
+                        <!-- Notifications will load here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 4: User IOU List -->
             <div class="tab-pane fade user-only" id="iouUserTab" role="tabpanel">
                 <div class="card no-print"><div class="card-header py-1">My IOU List (Click to Auto-fill Bill)</div>
                     <div class="card-body p-1">
                         <div class="table-responsive"><table class="table table-bordered table-hover table-sm">
-                            <thead class="table-secondary"><tr><th>#</th><th>Date</th><th>Territory</th><th>MPO</th><th>Sales</th><th>Taka</th></tr></thead>
-                            <tbody id="iou_user_table_body"><tr><td colspan="6" class="text-center">No IOU assigned</td></tr></tbody>
+                            <thead class="table-secondary"><tr><th>#</th><th>Date</th><th>Territory</th><th>MPO</th><th>Sales</th><th>Taka</th><th>Status</th></tr></thead>
+                            <tbody id="iou_user_table_body"><tr><td colspan="7" class="text-center">No IOU assigned</td></tr></tbody>
                         </table></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Tab 4: Admin IOU Entry (Admin Only) -->
+            <!-- Admin Tabs... (Kept same as before) -->
             <div class="tab-pane fade admin-only" id="iouAdminTab" role="tabpanel">
                 <div class="card no-print">
                     <div class="card-header py-1">Admin IOU Entry</div>
@@ -208,7 +276,6 @@
                 </div>
             </div>
 
-            <!-- Tab 5: Admin Notification (Admin Only) -->
             <div class="tab-pane fade admin-only" id="notifAdminTab" role="tabpanel">
                 <div class="card no-print">
                     <div class="card-header py-1">Send Notification</div>
@@ -221,7 +288,6 @@
                 </div>
             </div>
 
-            <!-- Tab 6: Add New DA -->
             <div class="tab-pane fade admin-only" id="addTab" role="tabpanel">
                 <div class="card">
                     <div class="card-header bg-info text-white py-1">New DA Record</div>
@@ -347,6 +413,7 @@
         let currentUser = null;
         let editingBillId = null;
         let daListCache = {}; 
+        let currentIouId = null; // Track selected IOU ID
 
         // ================= DATE FORMATTER =================
         function formatDate(dateStr) {
@@ -361,14 +428,12 @@
             const userVal = document.getElementById('username').value;
             const passVal = document.getElementById('password').value;
 
-            // Admin Hardcoded Login
             if (userVal === 'KS' && passVal === 'Monico@Ku007') {
                 currentUser = { name: 'Admin', role: 'admin', depot: 'all', id: 'admin_001' };
                 showDashboard();
                 return;
             }
 
-            // User Database Login
             const userRef = database.ref('Users');
             userRef.orderByChild('username').equalTo(userVal).once('value', (snapshot) => {
                 if (snapshot.exists()) {
@@ -387,11 +452,15 @@
                 } else { alert("User not found!"); }
             }, (error) => {
                 console.error("Login Error:", error);
-                alert("Database Connection Failed! Check Firebase Rules.");
+                alert("Database Connection Failed!");
             });
         }
 
         function logout() { currentUser = null; location.reload(); }
+        
+        function showNotifTab() {
+            document.getElementById('user_notif-tab').click();
+        }
 
         // ================= DASHBOARD VIEW =================
         function showDashboard() {
@@ -399,51 +468,101 @@
             document.getElementById('dashboard_section').classList.remove('hidden');
             document.getElementById('welcome_msg').innerText = `Welcome: ${currentUser.name}`;
             
-            // Reset Visibility
             document.querySelectorAll('.admin-only').forEach(item => item.style.display = 'none');
             document.querySelectorAll('.user-only').forEach(item => item.style.display = 'none');
 
             if(currentUser.role !== 'admin') {
-                // USER VIEW
                 document.querySelectorAll('.user-only').forEach(item => item.style.display = 'block');
                 document.getElementById('notif_btn').classList.remove('hidden');
-                listenForNotifications();
+                loadUserNotifications(); // Load notifs for user
             } else {
-                // ADMIN VIEW
                 document.querySelectorAll('.admin-only').forEach(item => item.style.display = 'block');
-                
-                // Fix: Admin Default Tab Show
                 document.getElementById('entry-tab').classList.remove('active');
                 document.getElementById('entryTab').classList.remove('show', 'active');
                 document.getElementById('history-tab').classList.add('active');
                 document.getElementById('billTab').classList.add('show', 'active');
-                
                 loadDAListForIOU();
             }
 
             prepareBillEntryForm();
-            loadBills(); // Load Bills after role set
+            loadBills();
             if(currentUser.role === 'user') loadUserIOU();
             if(currentUser.role === 'admin') loadAdminIOU();
         }
 
         // ================= NOTIFICATION SYSTEM =================
-        function listenForNotifications() {
-            const notifRef = database.ref('Notifications');
-            notifRef.limitToLast(1).on('child_added', (snapshot) => {
-                const msg = snapshot.val();
-                if(msg && msg.timestamp > (Date.now() - 10000)) { 
-                    alert("Notification: " + msg.message);
-                }
-            });
-        }
-
+        // Admin Sends Notification
         function sendNotification() {
             const msg = document.getElementById('notif_msg').value;
             if(!msg) return;
-            database.ref('Notifications').push({ message: msg, timestamp: Date.now() })
-            .then(() => { alert("Notification Sent!"); document.getElementById('notif_msg').value = ''; })
-            .catch(e => alert("Error: " + e.message));
+            
+            // Push to a global notifications list, then map to users? 
+            // Simplest way: Push to each user's node.
+            const usersRef = database.ref('Users');
+            usersRef.once('value', (snapshot) => {
+                const updates = {};
+                snapshot.forEach((child) => {
+                    // Push to each user's notification list
+                    const notifKey = database.ref().child('UserNotifications/' + child.key).push().key;
+                    updates['/UserNotifications/' + child.key + '/' + notifKey] = {
+                        message: msg,
+                        timestamp: Date.now(),
+                        read: false
+                    };
+                });
+                database.ref().update(updates).then(() => {
+                    alert("Notification Sent to All Users!");
+                    document.getElementById('notif_msg').value = '';
+                }).catch(e => alert("Error: " + e.message));
+            });
+        }
+
+        // User Loads Notifications
+        function loadUserNotifications() {
+            const notifRef = database.ref('UserNotifications/' + currentUser.id);
+            notifRef.orderByChild('timestamp').on('value', (snapshot) => {
+                const container = document.getElementById('user_notif_list');
+                container.innerHTML = '';
+                
+                let unreadCount = 0;
+                
+                if(!snapshot.exists()) {
+                    container.innerHTML = '<div class="p-3 text-center text-muted">No notifications</div>';
+                    document.getElementById('notif_count').innerText = 0;
+                    return;
+                }
+
+                // Convert to array and reverse to show newest first
+                const data = [];
+                snapshot.forEach(child => { data.push({key: child.key, ...child.val()}); });
+                data.reverse();
+
+                data.forEach(item => {
+                    if(!item.read) unreadCount++;
+                    
+                    const div = document.createElement('div');
+                    div.className = `notif-item ${item.read ? 'read' : 'unread'}`;
+                    div.innerHTML = `
+                        <div class="d-flex justify-content-between">
+                            <div>${item.message}</div>
+                            <small class="text-muted">${item.read ? 'Read' : 'New'}</small>
+                        </div>
+                        <small class="text-muted">${new Date(item.timestamp).toLocaleString()}</small>
+                    `;
+                    
+                    if(!item.read) {
+                        div.onclick = () => markNotifRead(item.key);
+                    }
+                    
+                    container.appendChild(div);
+                });
+                
+                document.getElementById('notif_count').innerText = unreadCount;
+            });
+        }
+
+        function markNotifRead(notifId) {
+            database.ref('UserNotifications/' + currentUser.id + '/' + notifId).update({ read: true });
         }
 
         // ================= BILL ENTRY LOGIC =================
@@ -459,7 +578,7 @@
             document.getElementById('form_submit_date').value = today;
 
             document.getElementById('expense_table_body').innerHTML = '';
-            addExpenseRow();
+            currentIouId = null; // Reset IOU selection
         }
 
         function calculateSoldValue() {
@@ -469,9 +588,50 @@
             updateEntryFormCostPercent();
         }
 
+        // Quick Entry Logic
+        function addQuickEntryRow() {
+            const from = document.getElementById('q_from').value;
+            const to = document.getElementById('q_to').value;
+            const mode = document.getElementById('q_mode').value;
+            const amount = document.getElementById('q_amount').value;
+            const da = document.getElementById('q_da_expense').value;
+            // CHANGE: Take date from Departure Date as requested
+            const date = document.getElementById('form_dep_date').value; 
+
+            if(!from && !to) { alert("Enter From/To"); return; }
+
+            const tbody = document.getElementById('expense_table_body');
+            const row = tbody.insertRow();
+            
+            row.innerHTML = `
+                <td><input type="date" class="form-control form-control-sm exp-date" value="${date}"></td>
+                <td><input type="text" class="form-control form-control-sm exp-from" value="${from}"></td>
+                <td><input type="text" class="form-control form-control-sm exp-to" value="${to}"></td>
+                <td><select class="form-select form-select-sm exp-mode">
+                    <option ${mode == 'Bus' ? 'selected' : ''}>Bus</option>
+                    <option ${mode == 'Rick' ? 'selected' : ''}>Rick</option>
+                    <option ${mode == 'CNG' ? 'selected' : ''}>CNG</option>
+                    <option ${mode == 'Train' ? 'selected' : ''}>Train</option>
+                </select></td>
+                <td><input type="number" class="form-control form-control-sm exp-amount" value="${amount}" oninput="calculateRowTotal(this)"></td>
+                <td><input type="number" class="form-control form-control-sm exp-da" value="${da}" oninput="calculateRowTotal(this)"></td>
+                <td><input type="text" class="form-control form-control-sm exp-total" value="${(parseFloat(amount)||0) + (parseFloat(da)||0)}" readonly></td>
+                <td><button class="btn btn-danger btn-sm" onclick="removeRow(this)">X</button></td>
+            `;
+
+            calculateGrandTotal();
+
+            // Clear Quick Entry
+            document.getElementById('q_from').value = '';
+            document.getElementById('q_to').value = '';
+            document.getElementById('q_amount').value = '';
+            document.getElementById('q_da_expense').value = '';
+            document.getElementById('q_from').focus();
+        }
+
         function addExpenseRow() {
             const tbody = document.getElementById('expense_table_body');
-            const today = document.getElementById('form_submit_date').value || new Date().toISOString().split('T')[0];
+            const today = document.getElementById('form_dep_date').value || new Date().toISOString().split('T')[0];
             
             const row = tbody.insertRow();
             row.innerHTML = `
@@ -529,7 +689,8 @@
                 invoiceQty: parseInt(document.getElementById('form_invoice_qty').value) || 0,
                 totalAmount: parseFloat(document.getElementById('grand_total').value),
                 status: statusType,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                iouId: currentIouId // Save which IOU was used (if any)
             };
 
             let expenses = [];
@@ -556,6 +717,11 @@
                 newBillRef.set(billData, (error) => {
                     if (error) alert("Error");
                     else {
+                        // If bill submitted from IOU, mark IOU as used
+                        if(currentIouId && (statusType === 'red' || statusType === 'green')) {
+                            database.ref('IOU_List/' + currentIouId).update({ status: 'used' });
+                        }
+
                         alert(statusType === 'draft' ? "Saved as Draft!" : "Bill Submitted!");
                         document.getElementById('form_route').value = '';
                         document.getElementById('grand_total').value = '0';
@@ -645,7 +811,7 @@
                     daListCache[child.key] = u.name;
                     select.innerHTML += `<option value="${child.key}">${u.name}</option>`;
                 });
-            }, (error) => { console.log("Error loading DA List: ", error); });
+            });
         }
 
         function saveIOU() {
@@ -662,7 +828,8 @@
                 sales: parseFloat(document.getElementById('iou_sales').value) || 0,
                 qty: parseInt(document.getElementById('iou_qty').value) || 0,
                 taka: parseFloat(document.getElementById('iou_taka').value) || 0,
-                percent: document.getElementById('iou_percent').value
+                percent: document.getElementById('iou_percent').value,
+                status: 'active' // Default status
             };
 
             database.ref('IOU_List').push(data)
@@ -681,17 +848,22 @@
                 snap.forEach(child => {
                     const d = child.val();
                     tSales += d.sales; tQty += d.qty; tTaka += d.taka;
-                    tbody.innerHTML += `<tr>
+                    
+                    const statusBadge = d.status === 'used' ? 
+                        '<span class="badge bg-secondary">Used</span>' : 
+                        '<span class="badge bg-success">Active</span>';
+
+                    tbody.innerHTML += `<tr class="${d.status === 'used' ? 'table-secondary' : ''}">
                         <td>${count++}</td><td>${formatDate(d.date)}</td><td>${d.daName}</td><td>${d.territory}</td>
                         <td>${d.mpo}</td><td>${d.summary}</td><td>${d.sales}</td><td>${d.qty}</td>
                         <td>${d.taka}</td><td>${d.percent}%</td>
-                        <td><button class="btn btn-sm btn-danger" onclick="deleteIOU('${child.key}')">X</button></td>
+                        <td>${statusBadge} <button class="btn btn-sm btn-danger" onclick="deleteIOU('${child.key}')">X</button></td>
                     </tr>`;
                 });
                 document.getElementById('iou_tot_sales').innerText = tSales;
                 document.getElementById('iou_tot_qty').innerText = tQty;
                 document.getElementById('iou_tot_taka').innerText = tTaka;
-            }, (error) => { console.log("IOU Load Error: ", error); });
+            });
         }
 
         function deleteIOU(id) {
@@ -703,20 +875,30 @@
                 const tbody = document.getElementById('iou_user_table_body');
                 tbody.innerHTML = '';
                 let count = 1;
-                if(!snap.exists()) tbody.innerHTML = '<tr><td colspan="6" class="text-center">No IOU assigned</td></tr>';
+                if(!snap.exists()) tbody.innerHTML = '<tr><td colspan="7" class="text-center">No IOU assigned</td></tr>';
                 
                 snap.forEach(child => {
                     const d = child.val();
                     const tr = document.createElement('tr');
-                    tr.classList.add('clickable-row');
-                    tr.onclick = () => fillBillFromIOU(d);
-                    tr.innerHTML = `<td>${count++}</td><td>${formatDate(d.date)}</td><td>${d.territory}</td><td>${d.mpo}</td><td>${d.sales}</td><td>${d.taka}</td>`;
+                    
+                    // Check if used
+                    if(d.status === 'used') {
+                        tr.classList.add('iou-used');
+                        tr.innerHTML = `<td>${count++}</td><td>${formatDate(d.date)}</td><td>${d.territory}</td><td>${d.mpo}</td><td>${d.sales}</td><td>${d.taka}</td><td><span class="badge badge-used">Used</span></td>`;
+                    } else {
+                        tr.classList.add('clickable-row');
+                        tr.onclick = () => fillBillFromIOU(d, child.key);
+                        tr.innerHTML = `<td>${count++}</td><td>${formatDate(d.date)}</td><td>${d.territory}</td><td>${d.mpo}</td><td>${d.sales}</td><td>${d.taka}</td><td><span class="badge bg-primary">Active</span></td>`;
+                    }
+                    
                     tbody.appendChild(tr);
                 });
-            }, (error) => { console.log("User IOU Error: ", error); });
+            });
         }
 
-        function fillBillFromIOU(iou) {
+        function fillBillFromIOU(iou, iouId) {
+            currentIouId = iouId; // Store ID to update status later
+            
             document.getElementById('form_dep_date').value = iou.date;
             document.getElementById('form_ret_date').value = iou.date;
             document.getElementById('form_submit_date').value = iou.date;
@@ -733,10 +915,10 @@
                 calculateRowTotal(tbody.rows[0].querySelector('.exp-amount'));
             }
             document.getElementById('entry-tab').click();
-            alert("Form Auto-filled from IOU!");
+            alert("Form Auto-filled! Submit bill to mark this IOU as Used.");
         }
 
-        // ================= BILL HISTORY LOGIC (FIXED) =================
+        // ================= BILL HISTORY LOGIC =================
         function loadBills() {
             const tableBody = document.getElementById('bill_table_body');
             tableBody.innerHTML = '<tr><td colspan="7" class="text-center">Loading...</td></tr>';
@@ -744,8 +926,6 @@
             
             billsRef.on('value', (snapshot) => {
                 tableBody.innerHTML = '';
-                
-                // Error/Empty Handling
                 if (!snapshot.exists()) { 
                     tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger">No Bills Found</td></tr>'; 
                     return; 
@@ -758,10 +938,6 @@
                             const billId = billSnapshot.key;
                             const daId = bill.daId;
 
-                            // Role Logic:
-                            // User: See only own bills (Draft, Red, Green)
-                            // Admin: See Red and Green (Hide Drafts to keep list clean)
-                            
                             if (currentUser.role === 'user' && bill.daId !== currentUser.id) return;
                             if (currentUser.role === 'admin' && bill.status === 'draft') return;
 
@@ -781,13 +957,11 @@
                             
                             let actionBtns = `<button class="btn btn-info btn-sm text-white" onclick="printBill('${billId}', '${bill.depot}', '${daId}')">Print</button> `;
 
-                            // User Actions
                             if (currentUser.role === 'user' && (bill.status === 'red' || bill.status === 'draft')) {
                                 actionBtns += `<button class="btn btn-warning btn-sm" onclick="editBill('${billId}', '${bill.depot}', '${daId}')">Edit</button> `;
                                 actionBtns += `<button class="btn btn-danger btn-sm" onclick="deleteBill('${billId}', '${bill.depot}', '${daId}')">Del</button>`;
                             }
 
-                            // Admin Actions
                             if (currentUser.role === 'admin' && bill.status === 'red') {
                                 actionBtns += `<button class="btn btn-warning btn-sm" onclick="openCutModal('${billId}', '${bill.depot}', '${daId}', ${bill.totalAmount})">Cut</button>`;
                             }
@@ -801,7 +975,7 @@
                 });
             }, (error) => {
                 console.error("Firebase Read Failed: ", error);
-                tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Database Error: ${error.message}<br>Check Firebase Rules.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="7" class="text-center text-danger">Database Error: ${error.message}</td></tr>`;
             });
         }
 
@@ -839,7 +1013,15 @@
                         const amt = parseFloat(exp.amount) || 0;
                         const da = parseFloat(exp.da) || 0;
                         const ded = parseFloat(exp.deduction) || 0;
-                        const total = (amt + da) - ded;
+                        const origTotal = amt + da;
+                        const finalTotal = origTotal - ded;
+
+                        // Strikethrough logic for print
+                        let totalDisplay = finalTotal;
+                        if(ded > 0) {
+                            totalDisplay = `<span class="cut-text">${origTotal}</span> <b>${finalTotal}</b>`;
+                        }
+
                         tbody.innerHTML += `<tr>
                             <td style="padding: 2px; text-align: left;">${formatDate(exp.date)}</td>
                             <td style="padding: 2px; text-align: left;">${exp.from}</td>
@@ -847,8 +1029,8 @@
                             <td style="padding: 2px; text-align: left;">${exp.mode}</td>
                             <td style="padding: 2px; text-align: left;">${amt}</td>
                             <td style="padding: 2px; text-align: left;">${da}</td>
-                            <td style="padding: 2px; text-align: left;">${ded}</td>
-                            <td style="padding: 2px; text-align: left;">${total}</td>
+                            <td style="padding: 2px; text-align: left; color:red;">${ded || ''}</td>
+                            <td style="padding: 2px; text-align: left;">${totalDisplay}</td>
                         </tr>`;
                     });
                 }
@@ -913,8 +1095,17 @@
                 const amt = parseFloat(row.querySelector('.row-amt').value) || 0;
                 const da = parseFloat(row.querySelector('.row-da').value) || 0;
                 const deduct = parseFloat(row.querySelector('.row-deduction').value) || 0;
-                const rowTotal = (amt + da) - deduct;
-                row.querySelector('.row-total').innerText = rowTotal;
+                const origTotal = amt + da;
+                const rowTotal = origTotal - deduct;
+                
+                // Update display with Strikethrough if deduction
+                const totalSpan = row.querySelector('.row-total');
+                if(deduct > 0) {
+                    totalSpan.innerHTML = `<span style="text-decoration: line-through; color:red;">${origTotal}</span> <span style="color:green;">${rowTotal}</span>`;
+                } else {
+                    totalSpan.innerText = rowTotal;
+                }
+                
                 grandTotal += rowTotal;
             });
             document.getElementById('modal_grand_total').innerText = grandTotal;
@@ -936,8 +1127,12 @@
                     amount: row.querySelector('.row-amt').value, da: row.querySelector('.row-da').value,
                     deduction: row.querySelector('.row-deduction').value || 0
                 });
-                newTotalAmount += parseFloat(row.querySelector('.row-total').innerText);
-                totalDeduction += parseFloat(row.querySelector('.row-deduction').value || 0);
+                // Calculate new total based on the visible final number
+                const amt = parseFloat(row.querySelector('.row-amt').value) || 0;
+                const da = parseFloat(row.querySelector('.row-da').value) || 0;
+                const ded = parseFloat(row.querySelector('.row-deduction').value) || 0;
+                newTotalAmount += (amt + da - ded);
+                totalDeduction += ded;
             });
 
             database.ref('Bills/' + depot + '/' + daId + '/' + billId).update({
