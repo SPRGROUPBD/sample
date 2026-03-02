@@ -15,7 +15,7 @@
         .hidden { display: none; }
         .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         
-        /* Quick Entry Style */
+        /* Quick Entry & Auto Save Style */
         .quick-entry-card { 
             background-color: #e3f2fd; 
             border: 1px solid #90caf9; 
@@ -24,6 +24,7 @@
             margin-bottom: 10px;
         }
         .quick-entry-card label { font-size: 11px; font-weight: bold; color: #0d47a1; }
+        #auto_save_status { font-size: 11px; margin-left: 10px; }
 
         /* Notification Styles */
         .notif-item { cursor: pointer; border-bottom: 1px solid #eee; padding: 10px; }
@@ -134,28 +135,28 @@
                     </div>
 
                     <div class="row mb-2">
-                        <div class="col-4"><label class="fw-bold">Departure Date:</label><input type="date" id="form_dep_date" class="form-control form-control-sm"></div>
-                        <div class="col-4"><label class="fw-bold">Return Date:</label><input type="date" id="form_ret_date" class="form-control form-control-sm"></div>
-                        <div class="col-4"><label class="fw-bold">Bill Date:</label><input type="date" id="form_submit_date" class="form-control form-control-sm"></div>
+                        <div class="col-4"><label class="fw-bold">Departure Date:</label><input type="date" id="form_dep_date" class="form-control form-control-sm" oninput="triggerAutoSave()"></div>
+                        <div class="col-4"><label class="fw-bold">Return Date:</label><input type="date" id="form_ret_date" class="form-control form-control-sm" oninput="triggerAutoSave()"></div>
+                        <div class="col-4"><label class="fw-bold">Bill Date:</label><input type="date" id="form_submit_date" class="form-control form-control-sm" oninput="triggerAutoSave()"></div>
                     </div>
 
                     <div class="row mb-2">
-                        <div class="col-12"><label class="fw-bold">Route:</label><input type="text" id="form_route" class="form-control form-control-sm" placeholder="Route Name"></div>
+                        <div class="col-12"><label class="fw-bold">Route:</label><input type="text" id="form_route" class="form-control form-control-sm" placeholder="Route Name" oninput="triggerAutoSave()"></div>
                     </div>
 
                     <div class="row mb-2">
-                        <div class="col-6"><label class="fw-bold">Name of MPO:</label><input type="text" id="form_mpo" class="form-control form-control-sm"></div>
-                        <div class="col-6"><label class="fw-bold">Summary No:</label><input type="text" id="form_summary" class="form-control form-control-sm"></div>
+                        <div class="col-6"><label class="fw-bold">Name of MPO:</label><input type="text" id="form_mpo" class="form-control form-control-sm" oninput="triggerAutoSave()"></div>
+                        <div class="col-6"><label class="fw-bold">Summary No:</label><input type="text" id="form_summary" class="form-control form-control-sm" oninput="triggerAutoSave()"></div>
                     </div>
 
                     <div class="row mb-2">
-                        <div class="col-4"><label>Invoice Value:</label><input type="number" id="form_invoice_val" class="form-control form-control-sm" oninput="calculateSoldValue()"></div>
-                        <div class="col-4"><label>Return Value:</label><input type="number" id="form_return_val" class="form-control form-control-sm" value="0" oninput="calculateSoldValue()"></div>
+                        <div class="col-4"><label>Invoice Value:</label><input type="number" id="form_invoice_val" class="form-control form-control-sm" oninput="calculateSoldValue(); triggerAutoSave()"></div>
+                        <div class="col-4"><label>Return Value:</label><input type="number" id="form_return_val" class="form-control form-control-sm" value="0" oninput="calculateSoldValue(); triggerAutoSave()"></div>
                         <div class="col-4"><label>Sold Value:</label><input type="number" id="form_sold_val" class="form-control form-control-sm" readonly></div>
                     </div>
                     
                     <div class="row mb-2">
-                        <div class="col-6"><label>Invoice Qty:</label><input type="number" id="form_invoice_qty" class="form-control form-control-sm"></div>
+                        <div class="col-6"><label>Invoice Qty:</label><input type="number" id="form_invoice_qty" class="form-control form-control-sm" oninput="triggerAutoSave()"></div>
                     </div>
 
                     <!-- QUICK ENTRY SECTION -->
@@ -207,7 +208,10 @@
                     </div>
 
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-2">
-                        <button onclick="addExpenseRow()" class="btn btn-secondary btn-sm">+ Empty Row</button>
+                        <!-- Auto Save Status Indicator -->
+                        <span id="auto_save_status" class="text-muted align-self-center me-auto"></span>
+                        
+                        <button onclick="addExpenseRow()" class="btn btn-secondary btn-sm">+ Row</button>
                         <button id="draft_btn" onclick="submitOrUpdateBill('draft')" class="btn btn-secondary btn-sm">Save Draft</button>
                         <button id="main_submit_btn" onclick="submitOrUpdateBill('red')" class="btn btn-success btn-sm">Submit Bill</button>
                         <button id="cancel_edit_btn" onclick="cancelEdit()" class="btn btn-danger btn-sm hidden">Cancel</button>
@@ -225,13 +229,11 @@
                 </div></div>
             </div>
 
-            <!-- Tab 3: User Notifications (NEW) -->
+            <!-- Tab 3: User Notifications -->
             <div class="tab-pane fade user-only" id="userNotifTab" role="tabpanel">
                 <div class="card no-print">
                     <div class="card-header py-1 bg-info text-white">My Notifications</div>
-                    <div class="card-body p-0" id="user_notif_list">
-                        <!-- Notifications will load here -->
-                    </div>
+                    <div class="card-body p-0" id="user_notif_list"></div>
                 </div>
             </div>
 
@@ -247,7 +249,7 @@
                 </div>
             </div>
 
-            <!-- Admin Tabs... (Kept same as before) -->
+            <!-- Admin Tabs -->
             <div class="tab-pane fade admin-only" id="iouAdminTab" role="tabpanel">
                 <div class="card no-print">
                     <div class="card-header py-1">Admin IOU Entry</div>
@@ -307,7 +309,7 @@
         </div>
     </div>
 
-    <!-- Cut Bill Modal (Admin Only) -->
+    <!-- Cut Bill Modal -->
     <div class="modal fade no-print" id="cutBillModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -413,7 +415,119 @@
         let currentUser = null;
         let editingBillId = null;
         let daListCache = {}; 
-        let currentIouId = null; // Track selected IOU ID
+        let currentIouId = null;
+        
+        // ================= AUTO SAVE LOGIC =================
+        let autoSaveTimeout;
+        const AUTO_SAVE_KEY = 'bill_draft_data';
+
+        function triggerAutoSave() {
+            if(editingBillId) return;
+            
+            clearTimeout(autoSaveTimeout);
+            const statusSpan = document.getElementById('auto_save_status');
+            statusSpan.innerText = "Typing...";
+            statusSpan.classList.remove('text-success');
+            statusSpan.classList.add('text-muted');
+
+            autoSaveTimeout = setTimeout(() => {
+                saveLocalDraft();
+                statusSpan.innerText = "Draft Saved Locally";
+                statusSpan.classList.remove('text-muted');
+                statusSpan.classList.add('text-success');
+            }, 800);
+        }
+
+        function saveLocalDraft() {
+            const data = {
+                depDate: document.getElementById('form_dep_date').value,
+                retDate: document.getElementById('form_ret_date').value,
+                submitDate: document.getElementById('form_submit_date').value,
+                route: document.getElementById('form_route').value,
+                mpo: document.getElementById('form_mpo').value,
+                summary: document.getElementById('form_summary').value,
+                invoiceVal: document.getElementById('form_invoice_val').value,
+                returnVal: document.getElementById('form_return_val').value,
+                invoiceQty: document.getElementById('form_invoice_qty').value,
+                iouId: currentIouId,
+                expenses: []
+            };
+
+            const rows = document.querySelectorAll('#expense_table_body tr');
+            rows.forEach(r => {
+                data.expenses.push({
+                    date: r.querySelector('.exp-date').value,
+                    from: r.querySelector('.exp-from').value,
+                    to: r.querySelector('.exp-to').value,
+                    mode: r.querySelector('.exp-mode').value,
+                    amount: r.querySelector('.exp-amount').value,
+                    da: r.querySelector('.exp-da').value
+                });
+            });
+
+            localStorage.setItem(AUTO_SAVE_KEY, JSON.stringify(data));
+        }
+
+        function loadLocalDraft() {
+            const savedData = localStorage.getItem(AUTO_SAVE_KEY);
+            if (!savedData) return;
+
+            try {
+                const data = JSON.parse(savedData);
+                
+                document.getElementById('form_dep_date').value = data.depDate || '';
+                document.getElementById('form_ret_date').value = data.retDate || '';
+                document.getElementById('form_submit_date').value = data.submitDate || '';
+                document.getElementById('form_route').value = data.route || '';
+                document.getElementById('form_mpo').value = data.mpo || '';
+                document.getElementById('form_summary').value = data.summary || '';
+                document.getElementById('form_invoice_val').value = data.invoiceVal || '';
+                document.getElementById('form_return_val').value = data.returnVal || 0;
+                document.getElementById('form_invoice_qty').value = data.invoiceQty || '';
+                currentIouId = data.iouId || null;
+                
+                calculateSoldValue();
+
+                const tbody = document.getElementById('expense_table_body');
+                tbody.innerHTML = '';
+                
+                if(data.expenses && data.expenses.length > 0) {
+                    data.expenses.forEach(exp => {
+                        const today = exp.date || document.getElementById('form_dep_date').value;
+                        const row = tbody.insertRow();
+                        row.innerHTML = `
+                            <td><input type="date" class="form-control form-control-sm exp-date" value="${exp.date}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
+                            <td><input type="text" class="form-control form-control-sm exp-from" value="${exp.from}" oninput="triggerAutoSave()"></td>
+                            <td><input type="text" class="form-control form-control-sm exp-to" value="${exp.to}" oninput="triggerAutoSave()"></td>
+                            <td><select class="form-select form-select-sm exp-mode" onchange="triggerAutoSave()">
+                                <option ${exp.mode == 'Bus' ? 'selected' : ''}>Bus</option>
+                                <option ${exp.mode == 'Rick' ? 'selected' : ''}>Rick</option>
+                                <option ${exp.mode == 'CNG' ? 'selected' : ''}>CNG</option>
+                                <option ${exp.mode == 'Train' ? 'selected' : ''}>Train</option>
+                            </select></td>
+                            <td><input type="number" class="form-control form-control-sm exp-amount" value="${exp.amount}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
+                            <td><input type="number" class="form-control form-control-sm exp-da" value="${exp.da}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
+                            <td><input type="text" class="form-control form-control-sm exp-total" value="${(parseFloat(exp.amount)||0) + (parseFloat(exp.da)||0)}" readonly></td>
+                            <td><button class="btn btn-danger btn-sm" onclick="removeRow(this)">X</button></td>
+                        `;
+                    });
+                }
+                
+                calculateGrandTotal();
+
+                document.getElementById('auto_save_status').innerText = "Draft Restored";
+                document.getElementById('auto_save_status').classList.add('text-success');
+
+            } catch (e) {
+                console.error("Error loading draft", e);
+            }
+        }
+
+        function clearLocalDraft() {
+            localStorage.removeItem(AUTO_SAVE_KEY);
+            document.getElementById('auto_save_status').innerText = "";
+        }
+
 
         // ================= DATE FORMATTER =================
         function formatDate(dateStr) {
@@ -474,7 +588,7 @@
             if(currentUser.role !== 'admin') {
                 document.querySelectorAll('.user-only').forEach(item => item.style.display = 'block');
                 document.getElementById('notif_btn').classList.remove('hidden');
-                loadUserNotifications(); // Load notifs for user
+                loadUserNotifications();
             } else {
                 document.querySelectorAll('.admin-only').forEach(item => item.style.display = 'block');
                 document.getElementById('entry-tab').classList.remove('active');
@@ -491,18 +605,14 @@
         }
 
         // ================= NOTIFICATION SYSTEM =================
-        // Admin Sends Notification
         function sendNotification() {
             const msg = document.getElementById('notif_msg').value;
             if(!msg) return;
             
-            // Push to a global notifications list, then map to users? 
-            // Simplest way: Push to each user's node.
             const usersRef = database.ref('Users');
             usersRef.once('value', (snapshot) => {
                 const updates = {};
                 snapshot.forEach((child) => {
-                    // Push to each user's notification list
                     const notifKey = database.ref().child('UserNotifications/' + child.key).push().key;
                     updates['/UserNotifications/' + child.key + '/' + notifKey] = {
                         message: msg,
@@ -517,7 +627,6 @@
             });
         }
 
-        // User Loads Notifications
         function loadUserNotifications() {
             const notifRef = database.ref('UserNotifications/' + currentUser.id);
             notifRef.orderByChild('timestamp').on('value', (snapshot) => {
@@ -532,7 +641,6 @@
                     return;
                 }
 
-                // Convert to array and reverse to show newest first
                 const data = [];
                 snapshot.forEach(child => { data.push({key: child.key, ...child.val()}); });
                 data.reverse();
@@ -578,7 +686,10 @@
             document.getElementById('form_submit_date').value = today;
 
             document.getElementById('expense_table_body').innerHTML = '';
-            currentIouId = null; // Reset IOU selection
+            
+            if(!editingBillId) {
+                loadLocalDraft();
+            }
         }
 
         function calculateSoldValue() {
@@ -595,7 +706,6 @@
             const mode = document.getElementById('q_mode').value;
             const amount = document.getElementById('q_amount').value;
             const da = document.getElementById('q_da_expense').value;
-            // CHANGE: Take date from Departure Date as requested
             const date = document.getElementById('form_dep_date').value; 
 
             if(!from && !to) { alert("Enter From/To"); return; }
@@ -604,24 +714,24 @@
             const row = tbody.insertRow();
             
             row.innerHTML = `
-                <td><input type="date" class="form-control form-control-sm exp-date" value="${date}"></td>
-                <td><input type="text" class="form-control form-control-sm exp-from" value="${from}"></td>
-                <td><input type="text" class="form-control form-control-sm exp-to" value="${to}"></td>
-                <td><select class="form-select form-select-sm exp-mode">
+                <td><input type="date" class="form-control form-control-sm exp-date" value="${date}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
+                <td><input type="text" class="form-control form-control-sm exp-from" value="${from}" oninput="triggerAutoSave()"></td>
+                <td><input type="text" class="form-control form-control-sm exp-to" value="${to}" oninput="triggerAutoSave()"></td>
+                <td><select class="form-select form-select-sm exp-mode" onchange="triggerAutoSave()">
                     <option ${mode == 'Bus' ? 'selected' : ''}>Bus</option>
                     <option ${mode == 'Rick' ? 'selected' : ''}>Rick</option>
                     <option ${mode == 'CNG' ? 'selected' : ''}>CNG</option>
                     <option ${mode == 'Train' ? 'selected' : ''}>Train</option>
                 </select></td>
-                <td><input type="number" class="form-control form-control-sm exp-amount" value="${amount}" oninput="calculateRowTotal(this)"></td>
-                <td><input type="number" class="form-control form-control-sm exp-da" value="${da}" oninput="calculateRowTotal(this)"></td>
+                <td><input type="number" class="form-control form-control-sm exp-amount" value="${amount}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
+                <td><input type="number" class="form-control form-control-sm exp-da" value="${da}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
                 <td><input type="text" class="form-control form-control-sm exp-total" value="${(parseFloat(amount)||0) + (parseFloat(da)||0)}" readonly></td>
                 <td><button class="btn btn-danger btn-sm" onclick="removeRow(this)">X</button></td>
             `;
 
             calculateGrandTotal();
+            triggerAutoSave();
 
-            // Clear Quick Entry
             document.getElementById('q_from').value = '';
             document.getElementById('q_to').value = '';
             document.getElementById('q_amount').value = '';
@@ -635,18 +745,23 @@
             
             const row = tbody.insertRow();
             row.innerHTML = `
-                <td><input type="date" class="form-control form-control-sm exp-date" value="${today}"></td>
-                <td><input type="text" class="form-control form-control-sm exp-from"></td>
-                <td><input type="text" class="form-control form-control-sm exp-to"></td>
-                <td><select class="form-select form-select-sm exp-mode"><option>Bus</option><option>Rick</option><option>CNG</option></select></td>
-                <td><input type="number" class="form-control form-control-sm exp-amount" oninput="calculateRowTotal(this)"></td>
-                <td><input type="number" class="form-control form-control-sm exp-da" oninput="calculateRowTotal(this)"></td>
+                <td><input type="date" class="form-control form-control-sm exp-date" value="${today}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
+                <td><input type="text" class="form-control form-control-sm exp-from" oninput="triggerAutoSave()"></td>
+                <td><input type="text" class="form-control form-control-sm exp-to" oninput="triggerAutoSave()"></td>
+                <td><select class="form-select form-select-sm exp-mode" onchange="triggerAutoSave()"><option>Bus</option><option>Rick</option><option>CNG</option></select></td>
+                <td><input type="number" class="form-control form-control-sm exp-amount" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
+                <td><input type="number" class="form-control form-control-sm exp-da" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
                 <td><input type="text" class="form-control form-control-sm exp-total" readonly></td>
                 <td><button class="btn btn-danger btn-sm" onclick="removeRow(this)">X</button></td>
             `;
+            triggerAutoSave();
         }
 
-        function removeRow(btn) { btn.parentNode.parentNode.remove(); calculateGrandTotal(); }
+        function removeRow(btn) { 
+            btn.parentNode.parentNode.remove(); 
+            calculateGrandTotal(); 
+            triggerAutoSave(); 
+        }
 
         function calculateRowTotal(input) {
             const row = input.parentNode.parentNode;
@@ -690,7 +805,7 @@
                 totalAmount: parseFloat(document.getElementById('grand_total').value),
                 status: statusType,
                 timestamp: Date.now(),
-                iouId: currentIouId // Save which IOU was used (if any)
+                iouId: currentIouId
             };
 
             let expenses = [];
@@ -717,11 +832,12 @@
                 newBillRef.set(billData, (error) => {
                     if (error) alert("Error");
                     else {
-                        // If bill submitted from IOU, mark IOU as used
                         if(currentIouId && (statusType === 'red' || statusType === 'green')) {
                             database.ref('IOU_List/' + currentIouId).update({ status: 'used' });
                         }
-
+                        
+                        clearLocalDraft();
+                        
                         alert(statusType === 'draft' ? "Saved as Draft!" : "Bill Submitted!");
                         document.getElementById('form_route').value = '';
                         document.getElementById('grand_total').value = '0';
@@ -738,6 +854,8 @@
                 const bill = snapshot.val();
                 if(!bill) return;
 
+                clearLocalDraft();
+
                 document.getElementById('form_da_name').value = bill.daName;
                 document.getElementById('form_depot').value = bill.depot;
                 document.getElementById('form_dep_date').value = bill.depDate;
@@ -750,18 +868,21 @@
                 document.getElementById('form_return_val').value = bill.returnVal;
                 document.getElementById('form_invoice_qty').value = bill.invoiceQty;
                 
+                // Capture IOU ID
+                currentIouId = bill.iouId || null;
+
                 const tbody = document.getElementById('expense_table_body');
                 tbody.innerHTML = '';
                 if(bill.expenses) {
                     bill.expenses.forEach(exp => {
                         const row = tbody.insertRow();
                         row.innerHTML = `
-                            <td><input type="date" class="form-control form-control-sm exp-date" value="${exp.date}"></td>
-                            <td><input type="text" class="form-control form-control-sm exp-from" value="${exp.from}"></td>
-                            <td><input type="text" class="form-control form-control-sm exp-to" value="${exp.to}"></td>
-                            <td><select class="form-select form-select-sm exp-mode"><option ${exp.mode == 'Bus' ? 'selected' : ''}>Bus</option><option ${exp.mode == 'Rick' ? 'selected' : ''}>Rick</option><option ${exp.mode == 'CNG' ? 'selected' : ''}>CNG</option></select></td>
-                            <td><input type="number" class="form-control form-control-sm exp-amount" value="${exp.amount}" oninput="calculateRowTotal(this)"></td>
-                            <td><input type="number" class="form-control form-control-sm exp-da" value="${exp.da}" oninput="calculateRowTotal(this)"></td>
+                            <td><input type="date" class="form-control form-control-sm exp-date" value="${exp.date}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
+                            <td><input type="text" class="form-control form-control-sm exp-from" value="${exp.from}" oninput="triggerAutoSave()"></td>
+                            <td><input type="text" class="form-control form-control-sm exp-to" value="${exp.to}" oninput="triggerAutoSave()"></td>
+                            <td><select class="form-select form-select-sm exp-mode" onchange="triggerAutoSave()"><option ${exp.mode == 'Bus' ? 'selected' : ''}>Bus</option><option ${exp.mode == 'Rick' ? 'selected' : ''}>Rick</option><option ${exp.mode == 'CNG' ? 'selected' : ''}>CNG</option></select></td>
+                            <td><input type="number" class="form-control form-control-sm exp-amount" value="${exp.amount}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
+                            <td><input type="number" class="form-control form-control-sm exp-da" value="${exp.da}" oninput="calculateRowTotal(this); triggerAutoSave()"></td>
                             <td><input type="text" class="form-control form-control-sm exp-total" value="${(parseFloat(exp.amount)||0) + (parseFloat(exp.da)||0)}" readonly></td>
                             <td><button class="btn btn-danger btn-sm" onclick="removeRow(this)">X</button></td>
                         `;
@@ -778,10 +899,30 @@
             });
         }
 
+        // ================= UPDATED DELETE BILL LOGIC =================
         function deleteBill(billId, depot, daId) {
-            if(confirm("Are you sure to delete?")) {
-                database.ref('Bills/' + depot + '/' + daId + '/' + billId).remove()
-                .then(() => alert("Deleted!")).catch(e => alert(e.message));
+            if(confirm("Are you sure to delete this bill?")) {
+                const billRef = database.ref('Bills/' + depot + '/' + daId + '/' + billId);
+                
+                // Step 1: Get Bill Data to find linked IOU
+                billRef.once('value', (snapshot) => {
+                    const billData = snapshot.val();
+                    const linkedIouId = billData ? billData.iouId : null;
+
+                    // Step 2: Delete Bill
+                    billRef.remove()
+                    .then(() => {
+                        alert("Bill Deleted!");
+                        
+                        // Step 3: If Bill had an IOU, make it Active again
+                        if (linkedIouId) {
+                            database.ref('IOU_List/' + linkedIouId).update({ status: 'active' })
+                                .then(() => console.log("IOU Reactivated"))
+                                .catch(err => console.error("Error reactivating IOU", err));
+                        }
+                    })
+                    .catch(e => alert(e.message));
+                });
             }
         }
 
@@ -791,6 +932,7 @@
             document.getElementById('main_submit_btn').classList.add('btn-success');
             document.getElementById('main_submit_btn').classList.remove('btn-warning');
             document.getElementById('cancel_edit_btn').classList.add('hidden');
+            clearLocalDraft();
             prepareBillEntryForm();
         }
 
@@ -829,7 +971,7 @@
                 qty: parseInt(document.getElementById('iou_qty').value) || 0,
                 taka: parseFloat(document.getElementById('iou_taka').value) || 0,
                 percent: document.getElementById('iou_percent').value,
-                status: 'active' // Default status
+                status: 'active'
             };
 
             database.ref('IOU_List').push(data)
@@ -881,7 +1023,6 @@
                     const d = child.val();
                     const tr = document.createElement('tr');
                     
-                    // Check if used
                     if(d.status === 'used') {
                         tr.classList.add('iou-used');
                         tr.innerHTML = `<td>${count++}</td><td>${formatDate(d.date)}</td><td>${d.territory}</td><td>${d.mpo}</td><td>${d.sales}</td><td>${d.taka}</td><td><span class="badge badge-used">Used</span></td>`;
@@ -897,7 +1038,7 @@
         }
 
         function fillBillFromIOU(iou, iouId) {
-            currentIouId = iouId; // Store ID to update status later
+            currentIouId = iouId;
             
             document.getElementById('form_dep_date').value = iou.date;
             document.getElementById('form_ret_date').value = iou.date;
@@ -914,6 +1055,7 @@
                 tbody.rows[0].querySelector('.exp-amount').value = iou.taka;
                 calculateRowTotal(tbody.rows[0].querySelector('.exp-amount'));
             }
+            triggerAutoSave();
             document.getElementById('entry-tab').click();
             alert("Form Auto-filled! Submit bill to mark this IOU as Used.");
         }
@@ -1016,7 +1158,6 @@
                         const origTotal = amt + da;
                         const finalTotal = origTotal - ded;
 
-                        // Strikethrough logic for print
                         let totalDisplay = finalTotal;
                         if(ded > 0) {
                             totalDisplay = `<span class="cut-text">${origTotal}</span> <b>${finalTotal}</b>`;
@@ -1098,7 +1239,6 @@
                 const origTotal = amt + da;
                 const rowTotal = origTotal - deduct;
                 
-                // Update display with Strikethrough if deduction
                 const totalSpan = row.querySelector('.row-total');
                 if(deduct > 0) {
                     totalSpan.innerHTML = `<span style="text-decoration: line-through; color:red;">${origTotal}</span> <span style="color:green;">${rowTotal}</span>`;
@@ -1127,7 +1267,6 @@
                     amount: row.querySelector('.row-amt').value, da: row.querySelector('.row-da').value,
                     deduction: row.querySelector('.row-deduction').value || 0
                 });
-                // Calculate new total based on the visible final number
                 const amt = parseFloat(row.querySelector('.row-amt').value) || 0;
                 const da = parseFloat(row.querySelector('.row-da').value) || 0;
                 const ded = parseFloat(row.querySelector('.row-deduction').value) || 0;
