@@ -73,7 +73,7 @@
                 <div class="mb-3"><label>Username</label><input type="text" id="username" class="form-control" placeholder="Enter Username"></div>
                 <div class="mb-3"><label>Password</label><input type="password" id="password" class="form-control" placeholder="Enter Password"></div>
                 <button onclick="handleLogin()" class="btn btn-primary w-100">Login</button>
-                
+                <!-- REMOVED HINT LINE -->
             </div>
         </div>
     </div>
@@ -208,7 +208,6 @@
                     </div>
 
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mb-2">
-                        <!-- Auto Save Status Indicator -->
                         <span id="auto_save_status" class="text-muted align-self-center me-auto"></span>
                         
                         <button onclick="addExpenseRow()" class="btn btn-secondary btn-sm">+ Row</button>
@@ -414,6 +413,7 @@
 
         let currentUser = null;
         let editingBillId = null;
+        let editingBillDaId = null; // NEW: To store DA ID during admin edit
         let daListCache = {}; 
         let currentIouId = null;
         
@@ -788,10 +788,22 @@
 
         // ================= SUBMIT, UPDATE, DRAFT LOGIC =================
         function submitOrUpdateBill(statusType) {
+            // Determine ownership
+            let targetDaId = currentUser.id;
+            let targetDaName = currentUser.name;
+            let targetDepot = currentUser.depot;
+
+            // If Admin is editing someone else's bill, keep original ownership
+            if (editingBillId && editingBillDaId) {
+                targetDaId = editingBillDaId;
+                targetDaName = document.getElementById('form_da_name').value;
+                targetDepot = document.getElementById('form_depot').value;
+            }
+
             const billData = {
-                daName: currentUser.name,
-                daId: currentUser.id,
-                depot: currentUser.depot,
+                daName: targetDaName,
+                daId: targetDaId,
+                depot: targetDepot,
                 depDate: document.getElementById('form_dep_date').value,
                 retDate: document.getElementById('form_ret_date').value,
                 submitDate: document.getElementById('form_submit_date').value,
@@ -820,7 +832,7 @@
 
             if (!billData.route) { alert("Please fill Route"); return; }
 
-            const basePath = 'Bills/' + billData.depot + '/' + currentUser.id;
+            const basePath = 'Bills/' + billData.depot + '/' + targetDaId;
             
             if (editingBillId) {
                 database.ref(basePath + '/' + editingBillId).update(billData, (error) => {
@@ -856,6 +868,9 @@
 
                 clearLocalDraft();
 
+                // Store DA ID to preserve ownership if Admin edits
+                editingBillDaId = bill.daId; 
+
                 document.getElementById('form_da_name').value = bill.daName;
                 document.getElementById('form_depot').value = bill.depot;
                 document.getElementById('form_dep_date').value = bill.depDate;
@@ -868,7 +883,6 @@
                 document.getElementById('form_return_val').value = bill.returnVal;
                 document.getElementById('form_invoice_qty').value = bill.invoiceQty;
                 
-                // Capture IOU ID
                 currentIouId = bill.iouId || null;
 
                 const tbody = document.getElementById('expense_table_body');
@@ -895,11 +909,15 @@
                 document.getElementById('main_submit_btn').classList.remove('btn-success');
                 document.getElementById('main_submit_btn').classList.add('btn-warning');
                 document.getElementById('cancel_edit_btn').classList.remove('hidden');
-                document.getElementById('entry-tab').click();
+                
+                // Switch to Entry Tab
+                document.getElementById('entry-tab').classList.add('active'); 
+                document.getElementById('entryTab').classList.add('show', 'active');
+                document.getElementById('history-tab').classList.remove('active');
+                document.getElementById('billTab').classList.remove('show', 'active');
             });
         }
 
-        // ================= UPDATED DELETE BILL LOGIC =================
         function deleteBill(billId, depot, daId) {
             if(confirm("Are you sure to delete this bill?")) {
                 const billRef = database.ref('Bills/' + depot + '/' + daId + '/' + billId);
@@ -928,6 +946,7 @@
 
         function cancelEdit() {
             editingBillId = null;
+            editingBillDaId = null; // Clear stored DA ID
             document.getElementById('main_submit_btn').innerText = "Submit Bill";
             document.getElementById('main_submit_btn').classList.add('btn-success');
             document.getElementById('main_submit_btn').classList.remove('btn-warning');
@@ -1099,13 +1118,22 @@
                             
                             let actionBtns = `<button class="btn btn-info btn-sm text-white" onclick="printBill('${billId}', '${bill.depot}', '${daId}')">Print</button> `;
 
+                            // User Actions
                             if (currentUser.role === 'user' && (bill.status === 'red' || bill.status === 'draft')) {
                                 actionBtns += `<button class="btn btn-warning btn-sm" onclick="editBill('${billId}', '${bill.depot}', '${daId}')">Edit</button> `;
                                 actionBtns += `<button class="btn btn-danger btn-sm" onclick="deleteBill('${billId}', '${bill.depot}', '${daId}')">Del</button>`;
                             }
 
-                            if (currentUser.role === 'admin' && bill.status === 'red') {
-                                actionBtns += `<button class="btn btn-warning btn-sm" onclick="openCutModal('${billId}', '${bill.depot}', '${daId}', ${bill.totalAmount})">Cut</button>`;
+                            // Admin Actions - NEW LOGIC
+                            if (currentUser.role === 'admin') {
+                                // Admin can Edit/Delete ANY bill
+                                actionBtns += `<button class="btn btn-warning btn-sm" onclick="editBill('${billId}', '${bill.depot}', '${daId}')">Edit</button> `;
+                                actionBtns += `<button class="btn btn-danger btn-sm" onclick="deleteBill('${billId}', '${bill.depot}', '${daId}')">Del</button> `;
+                                
+                                // Admin can Cut only Pending bills
+                                if (bill.status === 'red') {
+                                    actionBtns += `<button class="btn btn-secondary btn-sm" onclick="openCutModal('${billId}', '${bill.depot}', '${daId}', ${bill.totalAmount})">Cut</button>`;
+                                }
                             }
 
                             const showDate = bill.submitDate || bill.depDate;
